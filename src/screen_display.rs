@@ -1,4 +1,4 @@
-use log::info;
+use log::{debug, info};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{Document, WebGlRenderingContext};
@@ -24,16 +24,21 @@ impl Default for WebGLDisplay {
             .get_context("webgl")
             .unwrap()
             .unwrap()
-            .dyn_into::<WebGlRenderingContext>().unwrap();
+            .dyn_into::<WebGlRenderingContext>()
+            .unwrap();
         Self { gl_context }
     }
-
 }
 
 impl WebGLDisplay {
     pub fn clear(&self) {
+        debug!("CLS");
         self.gl_context.clear_color(0.0, 0.0, 0.0, 1.0);
         self.gl_context
             .clear(WebGlRenderingContext::COLOR_BUFFER_BIT)
+    }
+
+    pub fn draw(&self, x: usize, y: usize, n: u8) {
+        debug!("DRW V{}, V{}, {:#01x}", x, y, n)
     }
 }
