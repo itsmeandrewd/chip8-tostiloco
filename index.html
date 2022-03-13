@@ -5,12 +5,51 @@
         <title>Moldy Chip Emulator</title>
     </head>
     <body>
+        <form>
+            <input type="file" id="romFile">
+            <br><br>
+            <canvas id="glCanvas" width="1024" height="960"></canvas>
+        </form>
         <script type="module">
-            import init, {greet} from "./pkg/moldy_chip.js";
-            init()
-                .then(() => {
-                    greet("WebAssembly")
-            });
+            import init, {boot_emulator} from "./pkg/moldy_chip.js";
+
+            function main() {
+                //let gl_context = initialize_webGL();
+                loadRomFileHandler();
+            }
+
+            /*function initialize_webGL() {
+                const canvas = document.querySelector('#glCanvas');
+                const gl = canvas.getContext("webgl2");
+                if (gl == null) {
+                    alert("WebGL2 is not supported by your device!");
+                    return null;
+                }
+
+                gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                return gl;
+            }*/
+
+            function loadRomFileHandler() {
+                let romFileInput = document.querySelector('#romFile');
+                romFileInput.addEventListener('change', () => {
+                    if (romFileInput.files.length > 0) {
+                        let reader = new FileReader();
+                        reader.onloadend = () => {
+                            let byteArray = new Uint8Array(reader.result);
+                            boot_emulator(byteArray);
+                        };
+                        reader.readAsArrayBuffer(romFileInput.files[0]);
+                    }
+                })
+            }
+
+            async function run() {
+                await init();
+                main();
+            }
+            run();
         </script>
     </body>
 </html>
