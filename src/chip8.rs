@@ -1,7 +1,6 @@
 use crate::instruction::Instruction;
-use crate::screen_display::{ScreenDisplay, WebGLDisplay};
+use crate::screen_display::WebGLDisplay;
 use crate::CPU;
-use log::info;
 
 // where in memory roms should start being read from
 const ROM_START_ADDRESS: usize = 0x200;
@@ -46,7 +45,9 @@ impl CHIP8 {
             },
             0x6 => self.cpu.ld_vx(instruction.x, instruction.kk),
             0xa => self.cpu.ld_i(instruction.nnn),
-            0xd => self.display.draw(instruction.x, instruction.y, instruction.n),
+            0xd => self
+                .display
+                .draw(instruction.x, instruction.y, instruction.n),
             _ => self.unknown_instruction(&instruction),
         }
         self.cpu.program_counter += 2;

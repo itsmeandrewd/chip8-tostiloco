@@ -1,5 +1,4 @@
-use crate::instruction::Instruction;
-use log::{debug, info};
+use log::debug;
 
 pub struct CPU {
     pub(crate) address_i: u16,
