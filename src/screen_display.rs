@@ -2,6 +2,12 @@ use log::debug;
 use wasm_bindgen::JsCast;
 use web_sys::{WebGl2RenderingContext, WebGlProgram, WebGlShader};
 
+const CHIP8_WIDTH: u8 = 64;
+const CHIP8_HEIGHT: u8 = 32;
+
+const SUPER_CHIP8_WIDTH: u8 = 128;
+const SUPER_CHIP8_HEIGHT: u8 = 64;
+
 pub trait ScreenDisplay {
     fn clear(&self);
 }
@@ -31,15 +37,21 @@ impl Default for WebGLDisplay {
 
 impl WebGLDisplay {
     pub fn clear(&self) {
-        debug!("CLS");
         self.gl_context.clear_color(0.0, 0.0, 0.0, 1.0);
         self.gl_context
             .clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
     }
 
-    pub fn draw(&self, x: usize, y: usize, n: u8) {
-        debug!("DRW V{}, V{}, {:#01x}", x, y, n);
-        self.draw_box(1, 1, 50.0);
+    pub fn draw(&self, x: u8, y: u8, n: u8) {
+        self.draw_box(x, y, 50.0);
+    }
+
+    pub fn get_height(&self) -> u8 {
+        CHIP8_HEIGHT
+    }
+
+    pub fn get_width(&self) -> u8 {
+        CHIP8_WIDTH
     }
 
     pub fn draw_box(&self, x: u8, y: u8, block_size: f32) {
