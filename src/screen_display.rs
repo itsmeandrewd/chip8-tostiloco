@@ -1,9 +1,9 @@
 use log::debug;
 use wasm_bindgen::JsCast;
-use web_sys::{WebGl2RenderingContext, WebGlProgram, WebGlShader};
+use web_sys::{WebGl2RenderingContext, WebGlProgram, WebGlShader, WebGlUniformLocation};
 
-const CHIP8_WIDTH: u8 = 64;
-const CHIP8_HEIGHT: u8 = 32;
+const CHIP8_WIDTH: usize = 64;
+const CHIP8_HEIGHT: usize = 32;
 
 const SUPER_CHIP8_WIDTH: u8 = 128;
 const SUPER_CHIP8_HEIGHT: u8 = 64;
@@ -14,6 +14,8 @@ pub trait ScreenDisplay {
 
 pub struct WebGLDisplay {
     gl_context: WebGl2RenderingContext,
+    vram: [u8; (CHIP8_HEIGHT * CHIP8_WIDTH)],
+    color_uniform_location: Option<WebGlUniformLocation>
 }
 
 impl Default for WebGLDisplay {
@@ -31,7 +33,7 @@ impl Default for WebGLDisplay {
             .unwrap()
             .dyn_into::<WebGl2RenderingContext>()
             .unwrap();
-        Self { gl_context }
+        Self { gl_context, vram: [0; (CHIP8_HEIGHT * CHIP8_WIDTH) as usize], color_uniform_location: None }
     }
 }
 
@@ -42,19 +44,39 @@ impl WebGLDisplay {
             .clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
     }
 
-    pub fn draw(&self, x: u8, y: u8, n: u8) {
-        self.draw_box(x, y, 50.0);
+    pub fn draw(&mut self, x: usize, y: usize, n: usize, turn_on: bool) {
+        self.draw_box(x, y, 50.0, turn_on);
     }
 
-    pub fn get_height(&self) -> u8 {
+    pub fn is_pixel_on(&self, x: usize, y: usize) -> bool {
+        self.vram[y * self.get_width() + x] == 1
+    }
+
+    pub fn get_height(&self) -> usize {
         CHIP8_HEIGHT
     }
 
-    pub fn get_width(&self) -> u8 {
+    pub fn get_width(&self) -> usize {
         CHIP8_WIDTH
     }
 
-    pub fn draw_box(&self, x: u8, y: u8, block_size: f32) {
+    pub fn draw_box(&mut self, x: usize, y: usize, block_size: f32, turn_on: bool) {
+        /*let color_uniform_location = self
+            .gl_context
+            .get_uniform_location(&program, "u_color")
+            .unwrap();*/
+
+        // set color
+        if turn_on {
+            self.gl_context
+                .uniform4f(self.color_uniform_location.as_ref(), 0.5, 0.1, 0.3, 1.0);
+        } else {
+            self.gl_context
+                .uniform4f(self.color_uniform_location.as_ref(), 0.0, 0.0, 0.0, 0.0);
+        }
+
+        self.vram[y * self.get_width() + x] = 1;
+
         let x1 = x as f32;
         let x2 = x1 + block_size;
         let y1 = y as f32;
@@ -77,7 +99,7 @@ impl WebGLDisplay {
             .draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, 6);
     }
 
-    pub fn init(&self) {
+    pub fn init(&mut self) {
         let program = self.get_program();
         let position_attribute_location =
             self.gl_context.get_attrib_location(&program, "a_position");
@@ -85,10 +107,10 @@ impl WebGLDisplay {
             .gl_context
             .get_uniform_location(&program, "u_resolution")
             .unwrap();
-        let color_uniform_location = self
+        self.color_uniform_location = Some(self
             .gl_context
             .get_uniform_location(&program, "u_color")
-            .unwrap();
+            .unwrap());
 
         let position_buffer = self.gl_context.create_buffer().unwrap();
         self.gl_context
@@ -110,8 +132,8 @@ impl WebGLDisplay {
             .uniform2f(Some(&resolution_uniform_location), 1024.0, 960.0);
 
         // set color
-        self.gl_context
-            .uniform4f(Some(&color_uniform_location), 0.5, 0.1, 0.3, 1.0);
+        //self.gl_context
+        //    .uniform4f(Some(&color_uniform_location), 0.5, 0.1, 0.3, 1.0);
     }
 
     fn get_program(&self) -> WebGlProgram {

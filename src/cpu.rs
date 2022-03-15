@@ -44,14 +44,35 @@ impl CPU {
         self.v_registers[x] = byte;
     }
 
-    pub fn drw(&mut self, vx: usize, vy: usize, n: u8, memory: &[u8]) {
+    pub fn drw(&mut self, vx: usize, vy: usize, n: usize, memory: &[u8]) {
         debug!("DRW V{}, V{}, {:#01x}", vx, vy, n);
-        let x_coord = self.v_registers[vx] % 64;
-        let y_coord = self.v_registers[vy] % 32;
+        let mut x_coord = (self.v_registers[vx] % 64) as usize;
+        let mut y_coord = (self.v_registers[vy] % 32) as usize;
         self.v_registers[0xf] = 0;
 
-        for i in 0..self.display.get_height() {}
+        let pixel_size = 10.0;
+        for row in 0..n {
+            let sprite_data = memory[(self.address_i as usize) + row];
+            for bit in 0..8 {
+                let sprite_pixel = (sprite_data & (1 << bit)) != 0;
+                if sprite_pixel && self.display.is_pixel_on(x_coord, y_coord) {
+                    self.display.draw_box(x_coord, y_coord, pixel_size, false);
+                    self.v_registers[0xf] = 1;
+                } else if sprite_pixel {
+                    self.display.draw_box(x_coord, y_coord, pixel_size, true);
+                }
 
-        self.display.draw(vx as u8, vy as u8, n);
+                x_coord += 1;
+                if x_coord >= self.display.get_width() {
+                    break;
+                }
+            }
+            y_coord += 1;
+            if y_coord >= self.display.get_height() {
+                break;
+            }
+        }
+
+        //self.display.draw(vx as u8, vy as u8, n);
     }
 }

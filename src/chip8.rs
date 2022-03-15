@@ -45,7 +45,7 @@ impl CHIP8 {
             },
             0x6 => self.cpu.ld_vx(instruction.x, instruction.kk),
             0xa => self.cpu.ld_i(instruction.nnn),
-            0xd => self.cpu.drw(instruction.x, instruction.y, instruction.n, &self.memory),
+            0xd => self.cpu.drw(instruction.x, instruction.y, instruction.n as usize, &self.memory),
             _ => self.unknown_instruction(&instruction),
         }
         self.cpu.program_counter += 2;
