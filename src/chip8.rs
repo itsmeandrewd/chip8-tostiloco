@@ -44,11 +44,15 @@ impl CHIP8 {
                 _ => self.unknown_instruction(&instruction),
             },
             0x6 => self.cpu.ld_vx(instruction.x, instruction.kk),
+            0x7 => self.cpu.add_vx(instruction.x, instruction.kk),
             0xa => self.cpu.ld_i(instruction.nnn),
             0xd => self.cpu.drw(instruction.x, instruction.y, instruction.n as usize, &self.memory),
             _ => self.unknown_instruction(&instruction),
         }
-        self.cpu.program_counter += 2;
+
+        if instruction.first != 0x2 {
+            self.cpu.program_counter += 2;
+        }
     }
 
     fn unknown_instruction(&self, instruction: &Instruction) {

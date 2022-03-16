@@ -44,13 +44,18 @@ impl CPU {
         self.v_registers[x] = byte;
     }
 
+    pub fn add_vx(&mut self, x: usize, byte: u8) {
+        debug!("ADD V{}, {:#01x}", x, byte);
+        self.v_registers[x] +=  byte;
+    }
+
     pub fn drw(&mut self, vx: usize, vy: usize, n: usize, memory: &[u8]) {
         debug!("DRW V{}, V{}, {:#01x}", vx, vy, n);
         let mut x_coord = (self.v_registers[vx] % 64) as usize;
         let mut y_coord = (self.v_registers[vy] % 32) as usize;
         self.v_registers[0xf] = 0;
 
-        let pixel_size = 10.0;
+        let pixel_size = 40.0;
         for row in 0..n {
             let sprite_data = memory[(self.address_i as usize) + row];
             for bit in 0..8 {
@@ -72,6 +77,7 @@ impl CPU {
                 break;
             }
         }
+        self.display.finish_drawing();
 
         //self.display.draw(vx as u8, vy as u8, n);
     }

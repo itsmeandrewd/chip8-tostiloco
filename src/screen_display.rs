@@ -95,6 +95,11 @@ impl WebGLDisplay {
             &buffer_data,
             WebGl2RenderingContext::STATIC_DRAW,
         );*/
+        /*self.gl_context
+            .draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, 6);*/
+    }
+
+    pub fn finish_drawing(&self) {
         self.gl_context
             .draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, 6);
     }
