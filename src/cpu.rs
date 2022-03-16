@@ -23,7 +23,7 @@ impl Default for CPU {
             delay_timer: 0,
             sound_timer: 0,
 
-            display: Default::default()
+            display: Default::default(),
         }
     }
 }
@@ -46,7 +46,7 @@ impl CPU {
 
     pub fn add_vx(&mut self, x: usize, byte: u8) {
         debug!("ADD V{}, {:#01x}", x, byte);
-        self.v_registers[x] +=  byte;
+        self.v_registers[x] += byte;
     }
 
     pub fn drw(&mut self, vx: usize, vy: usize, n: usize, memory: &[u8]) {
@@ -77,8 +77,6 @@ impl CPU {
                 break;
             }
         }
-        self.display.finish_drawing();
-
-        //self.display.draw(vx as u8, vy as u8, n);
+        //self.display.finish_drawing();
     }
 }

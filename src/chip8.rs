@@ -7,14 +7,14 @@ const ROM_START_ADDRESS: usize = 0x200;
 
 pub struct CHIP8 {
     pub cpu: CPU,
-    pub memory: [u8; 4096]
+    pub memory: [u8; 4096],
 }
 
 impl Default for CHIP8 {
     fn default() -> Self {
         Self {
             cpu: CPU::default(),
-            memory: [0; 4096]
+            memory: [0; 4096],
         }
     }
 }
@@ -46,7 +46,12 @@ impl CHIP8 {
             0x6 => self.cpu.ld_vx(instruction.x, instruction.kk),
             0x7 => self.cpu.add_vx(instruction.x, instruction.kk),
             0xa => self.cpu.ld_i(instruction.nnn),
-            0xd => self.cpu.drw(instruction.x, instruction.y, instruction.n as usize, &self.memory),
+            0xd => self.cpu.drw(
+                instruction.x,
+                instruction.y,
+                instruction.n as usize,
+                &self.memory,
+            ),
             _ => self.unknown_instruction(&instruction),
         }
 

@@ -1,6 +1,8 @@
 use log::debug;
 use wasm_bindgen::JsCast;
-use web_sys::{WebGl2RenderingContext, WebGlProgram, WebGlShader, WebGlUniformLocation};
+use web_sys::{
+    HtmlCanvasElement, WebGl2RenderingContext, WebGlProgram, WebGlShader, WebGlUniformLocation,
+};
 
 const CHIP8_WIDTH: usize = 64;
 const CHIP8_HEIGHT: usize = 32;
@@ -15,7 +17,8 @@ pub trait ScreenDisplay {
 pub struct WebGLDisplay {
     gl_context: WebGl2RenderingContext,
     vram: [u8; (CHIP8_HEIGHT * CHIP8_WIDTH)],
-    color_uniform_location: Option<WebGlUniformLocation>
+    color_uniform_location: Option<WebGlUniformLocation>,
+    canvas: HtmlCanvasElement,
 }
 
 impl Default for WebGLDisplay {
@@ -33,7 +36,12 @@ impl Default for WebGLDisplay {
             .unwrap()
             .dyn_into::<WebGl2RenderingContext>()
             .unwrap();
-        Self { gl_context, vram: [0; (CHIP8_HEIGHT * CHIP8_WIDTH) as usize], color_uniform_location: None }
+        Self {
+            gl_context,
+            vram: [0; (CHIP8_HEIGHT * CHIP8_WIDTH) as usize],
+            color_uniform_location: None,
+            canvas,
+        }
     }
 }
 
@@ -61,11 +69,6 @@ impl WebGLDisplay {
     }
 
     pub fn draw_box(&mut self, x: usize, y: usize, block_size: f32, turn_on: bool) {
-        /*let color_uniform_location = self
-            .gl_context
-            .get_uniform_location(&program, "u_color")
-            .unwrap();*/
-
         // set color
         if turn_on {
             self.gl_context
@@ -90,13 +93,9 @@ impl WebGLDisplay {
                 WebGl2RenderingContext::STATIC_DRAW,
             );
         }
-        /*self.gl_context.buffer_data_with_u8_array(
-            WebGl2RenderingContext::ARRAY_BUFFER,
-            &buffer_data,
-            WebGl2RenderingContext::STATIC_DRAW,
-        );*/
-        /*self.gl_context
-            .draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, 6);*/
+
+        self.gl_context
+            .draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, 6);
     }
 
     pub fn finish_drawing(&self) {
@@ -106,46 +105,55 @@ impl WebGLDisplay {
 
     pub fn init(&mut self) {
         let program = self.get_program();
+
         let position_attribute_location =
             self.gl_context.get_attrib_location(&program, "a_position");
+
         let resolution_uniform_location = self
             .gl_context
-            .get_uniform_location(&program, "u_resolution")
-            .unwrap();
-        self.color_uniform_location = Some(self
-            .gl_context
-            .get_uniform_location(&program, "u_color")
-            .unwrap());
+            .get_uniform_location(&program, "u_resolution");
+        self.color_uniform_location = self.gl_context.get_uniform_location(&program, "u_color");
 
         let position_buffer = self.gl_context.create_buffer().unwrap();
+
+        let vao = self.gl_context.create_vertex_array();
+        self.gl_context.bind_vertex_array(vao.as_ref());
+        self.gl_context
+            .enable_vertex_attrib_array(position_attribute_location as u32);
         self.gl_context
             .bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&position_buffer));
 
-        self.gl_context.viewport(0, 0, 1024, 960);
-        self.gl_context
-            .enable_vertex_attrib_array(position_attribute_location as u32);
         self.gl_context.vertex_attrib_pointer_with_i32(
             position_attribute_location as u32,
-            2,
-            WebGl2RenderingContext::FLOAT,
-            false,
-            0,
-            0,
+            2,                             // components per iteration
+            WebGl2RenderingContext::FLOAT, // data type
+            false,                         // data normalization
+            0,                             // stride
+            0,                             // offset
         );
-        // set resolution
-        self.gl_context
-            .uniform2f(Some(&resolution_uniform_location), 1024.0, 960.0);
 
-        // set color
-        //self.gl_context
-        //    .uniform4f(Some(&color_uniform_location), 0.5, 0.1, 0.3, 1.0);
+        self.gl_context
+            .viewport(0, 0, self.canvas.width() as i32, self.canvas.height() as i32);
+        self.gl_context.clear_color(0.0, 0.0, 0.0, 0.0);
+        self.gl_context.clear(
+            WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT,
+        );
+        self.gl_context.bind_vertex_array(vao.as_ref());
+
+        // set resolution
+        self.gl_context.uniform2f(
+            resolution_uniform_location.as_ref(),
+            self.canvas.width() as f32,
+            self.canvas.height() as f32,
+        );
     }
 
     fn get_program(&self) -> WebGlProgram {
         let vertex_shader = self.compile_shader(
             WebGl2RenderingContext::VERTEX_SHADER,
-            r#"
-            attribute vec2 a_position;
+            r#"#version 300 es
+
+            in vec2 a_position;
             uniform vec2 u_resolution;
 
             void main() {
@@ -164,12 +172,15 @@ impl WebGLDisplay {
         );
         let fragment_shader = self.compile_shader(
             WebGl2RenderingContext::FRAGMENT_SHADER,
-            r#"
-            precision mediump float;
+            r#"#version 300 es
+
+            precision highp float;
             uniform vec4 u_color;
 
+            out vec4 outColor;
+
             void main() {
-               gl_FragColor = u_color;
+               outColor = u_color;
             }
             "#,
         );
