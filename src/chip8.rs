@@ -37,6 +37,8 @@ impl CHIP8 {
                 0xe0 => self.cpu.cls(),
                 _ => self.unknown_instruction(&instruction),
             },
+            0x1 => self.cpu.jp(instruction.nnn),
+            0x3 => self.cpu.se_vx(instruction.x, instruction.kk),
             0x6 => self.cpu.ld_vx(instruction.x, instruction.kk),
             0x7 => self.cpu.add_vx(instruction.x, instruction.kk),
             0xa => self.cpu.ld_i(instruction.nnn),
@@ -49,8 +51,8 @@ impl CHIP8 {
             _ => self.unknown_instruction(&instruction),
         }
 
-        if instruction.first != 0x2 {
-            // dont move the pc with CALL instructions
+        if instruction.first != 0x2 && instruction.first != 0x1 {
+            // dont move the pc with JP or CALL instructions
             self.cpu.program_counter += 2;
         }
     }

@@ -44,6 +44,18 @@ impl CPU {
         self.v_registers[x] = byte;
     }
 
+    pub fn se_vx(&mut self, vx: usize, byte: u8) {
+        debug!("SE V{}, {:#01x}", vx, byte);
+        if self.v_registers[vx] == byte {
+            self.program_counter += 2;
+        }
+    }
+
+    pub fn jp(&mut self, addr: u16) {
+        debug!("JP {:#02x}", addr);
+        self.program_counter = addr as usize;
+    }
+
     pub fn add_vx(&mut self, x: usize, byte: u8) {
         debug!("ADD V{}, {:#01x}", x, byte);
         self.v_registers[x] += byte;

@@ -45,7 +45,8 @@ impl Default for WebGLDisplay {
 }
 
 impl WebGLDisplay {
-    pub fn clear(&self) {
+    pub fn clear(&mut self) {
+        self.vram.iter_mut().for_each(|m| *m = 0);
         self.gl_context.clear_color(0.0, 0.0, 0.0, 1.0);
         self.gl_context
             .clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
