@@ -2,6 +2,7 @@
 name = "moldy_chip"
 version = "0.1.0"
 edition = "2021"
+description = "another boring rust chip8 webassembly emulator"
 authors = ["Andrew De Stefano <313039+itsmeandrewd@users.noreply.github.com"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

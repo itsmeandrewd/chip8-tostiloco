@@ -21,11 +21,6 @@ impl Default for CHIP8 {
 
 impl CHIP8 {
     pub(crate) fn load_rom_into_memory(&mut self, rom_bytes: &[u8]) {
-        /*let mut index: usize = 0;
-        for &byte in rom_bytes.into_iter() {
-            self.memory[ROM_START_ADDRESS + index] = byte;
-            index += 1;
-        }*/
         self.memory[ROM_START_ADDRESS..ROM_START_ADDRESS + rom_bytes.len()]
             .copy_from_slice(&rom_bytes);
     }
@@ -56,6 +51,7 @@ impl CHIP8 {
         }
 
         if instruction.first != 0x2 {
+            // dont move the pc with CALL instructions
             self.cpu.program_counter += 2;
         }
     }

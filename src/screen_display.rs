@@ -75,14 +75,14 @@ impl WebGLDisplay {
                 .uniform4f(self.color_uniform_location.as_ref(), 0.5, 0.1, 0.3, 1.0);
         } else {
             self.gl_context
-                .uniform4f(self.color_uniform_location.as_ref(), 0.0, 0.0, 0.0, 0.0);
+                .uniform4f(self.color_uniform_location.as_ref(), 0.0, 0.0, 0.0, 1.0);
         }
 
         self.vram[y * self.get_width() + x] = 1;
 
-        let x1 = x as f32;
+        let x1 = x as f32 * block_size;
         let x2 = x1 + block_size;
-        let y1 = y as f32;
+        let y1 = y as f32 * block_size;
         let y2 = y1 + block_size;
         let buffer_data: [f32; 12] = [x1, y1, x2, y1, x1, y2, x1, y2, x2, y1, x2, y2];
         unsafe {
