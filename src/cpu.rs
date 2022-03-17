@@ -48,6 +48,13 @@ impl CPU {
         }
     }
 
+    pub fn sne_vx(&mut self, vx: usize, byte: u8) {
+        debug!("SNE V{}, {:#01x}", vx, byte);
+        if self.v_registers[vx] != byte {
+            self.program_counter += 2;
+        }
+    }
+
     pub fn jp(&mut self, addr: u16) {
         debug!("JP {:#02x}", addr);
         self.program_counter = addr as usize;
@@ -56,6 +63,11 @@ impl CPU {
     pub fn add_vx(&mut self, x: usize, byte: u8) {
         debug!("ADD V{}, {:#01x}", x, byte);
         self.v_registers[x] += byte;
+    }
+
+    pub fn add_i_vx(&mut self, x: usize) {
+        debug!("ADD I, V{}", x);
+        self.address_i += self.v_registers[x] as u16;
     }
 
     pub fn drw(
@@ -89,7 +101,8 @@ impl CPU {
                 }
             }
             y_coord += 1;
-            x_coord = 0;
+            //x_coord = 0;
+            x_coord = (self.v_registers[vx] % 64) as usize;
             if y_coord >= display.get_height() {
                 break;
             }
@@ -109,6 +122,7 @@ impl CPU {
             },
             0x1 => self.jp(instruction.nnn),
             0x3 => self.se_vx(instruction.x, instruction.kk),
+            0x4 => self.sne_vx(instruction.x, instruction.kk),
             0x6 => self.ld_vx(instruction.x, instruction.kk),
             0x7 => self.add_vx(instruction.x, instruction.kk),
             0xa => self.ld_i(instruction.nnn),
@@ -119,6 +133,10 @@ impl CPU {
                 memory,
                 display,
             ),
+            0xf => match instruction.kk {
+                0x1e => self.add_i_vx(instruction.x),
+                _ => self.unknown_instruction(&instruction)
+            },
             _ => self.unknown_instruction(&instruction),
         }
 
@@ -191,6 +209,24 @@ mod test {
     }
 
     #[test]
+    fn sne_vx() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0x4320);
+
+        cpu.program_counter = 0x5;
+        cpu.v_registers[0x3] = 0x21;
+
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        assert_eq!(cpu.program_counter, 0x9);
+
+        cpu.program_counter = 0x5;
+        let instruction = Instruction::new(0x4321);
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        assert_eq!(cpu.program_counter, 0x7);
+    }
+
+    #[test]
     fn jp() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
@@ -209,5 +245,45 @@ mod test {
         cpu.v_registers[0xc] = 0x12;
         cpu.execute_instruction(instruction, &mut [0], &mut display);
         assert_eq!(cpu.v_registers[0xc], 0x17);
+    }
+
+    #[test]
+    fn add_i_vx() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0xfb1e);
+
+        cpu.address_i = 0x7;
+        cpu.v_registers[0xb] = 0x3;
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        assert_eq!(cpu.address_i, 0xa);
+    }
+
+    #[test]
+    fn drw() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0xd103);
+        let mut memory: [u8; 4096] = [0; 4096];
+
+        // drawing the following 'tree' sprite offset 1 pixel from left
+        // ...*..
+        // ..*.*.
+        // .*..*.
+        let sprite_data: [u8; 3] = [
+          0b00100, 0b01010, 0b10010
+        ];
+        cpu.address_i = 0x500;
+        memory[0x500..0x500 + sprite_data.len()].copy_from_slice(&sprite_data);
+        cpu.execute_instruction(instruction, &mut memory, &mut display);
+
+        // row 1
+        assert_eq!(display.vram[0], 0);
+        assert_eq!(display.vram[1], 0);
+        assert_eq!(display.vram[2], 0);
+        assert_eq!(display.vram[3], 1);
+        assert_eq!(display.vram[4], 0);
+        assert_eq!(display.vram[5], 0);
+
     }
 }
