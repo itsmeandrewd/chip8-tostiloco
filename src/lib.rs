@@ -1,13 +1,14 @@
 mod chip8;
 mod cpu;
+mod display;
 mod instruction;
-mod screen_display;
 
 use crate::chip8::CHIP8;
 use crate::cpu::CPU;
 use log::Level;
 use std::panic;
 use wasm_bindgen::prelude::*;
+use crate::display::Display;
 
 #[wasm_bindgen]
 extern "C" {
@@ -24,7 +25,7 @@ pub fn boot_emulator(rom_bytes: &[u8]) {
     init_logging();
 
     let mut chip8: CHIP8 = Default::default();
-    chip8.display.init();
+    chip8.display.initialize();
     chip8.load_rom_into_memory(rom_bytes);
     chip8.fetch_and_execute_instruction();
     chip8.fetch_and_execute_instruction();

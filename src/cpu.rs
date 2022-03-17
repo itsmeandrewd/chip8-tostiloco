@@ -1,6 +1,6 @@
-use crate::screen_display::WebGLDisplay;
-use log::debug;
+use crate::display::Display;
 use crate::instruction::Instruction;
+use log::debug;
 
 pub struct CPU {
     pub address_i: u16,
@@ -26,7 +26,7 @@ impl Default for CPU {
 }
 
 impl CPU {
-    pub fn cls(&mut self, display: &mut WebGLDisplay) {
+    pub fn cls(&mut self, display: &mut dyn Display) {
         debug!("CLS");
         display.clear();
     }
@@ -64,7 +64,7 @@ impl CPU {
         vy: usize,
         n: usize,
         memory: &[u8],
-        display: &mut WebGLDisplay,
+        display: &mut dyn Display,
     ) {
         debug!("DRW V{}, V{}, {:#01x}", vx, vy, n);
         let mut x_coord = (self.v_registers[vx] % 64) as usize;
@@ -76,11 +76,11 @@ impl CPU {
             let sprite_data = memory[(self.address_i as usize) + row];
             for bit in 0..8 {
                 let sprite_pixel = (sprite_data & (1 << bit)) != 0;
-                if sprite_pixel && display.is_pixel_on(x_coord, y_coord) {
-                    display.draw_box(x_coord, y_coord, pixel_size, false);
+                if sprite_pixel && display.get_pixel(x_coord, y_coord) {
+                    display.draw_pixel(x_coord, y_coord, pixel_size, false);
                     self.v_registers[0xf] = 1;
                 } else if sprite_pixel {
-                    display.draw_box(x_coord, y_coord, pixel_size, true);
+                    display.draw_pixel(x_coord, y_coord, pixel_size, true);
                 }
 
                 x_coord += 1;
@@ -96,7 +96,12 @@ impl CPU {
         }
     }
 
-    pub(crate) fn execute_instruction(&mut self, instruction: Instruction, memory: &mut [u8], display: &mut WebGLDisplay) {
+    pub fn execute_instruction(
+        &mut self,
+        instruction: Instruction,
+        memory: &mut [u8],
+        display: &mut dyn Display,
+    ) {
         match instruction.first {
             0x0 => match instruction.kk {
                 0xe0 => self.cls(display),
@@ -112,7 +117,7 @@ impl CPU {
                 instruction.y,
                 instruction.n as usize,
                 memory,
-                display
+                display,
             ),
             _ => self.unknown_instruction(&instruction),
         }
@@ -135,6 +140,8 @@ impl CPU {
 mod test {
     use super::*;
 
+    #[test]
+    fn cls() {}
     #[test]
     fn ld_vx() {
         let mut cpu = CPU::default();

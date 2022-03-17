@@ -3,16 +3,13 @@ use wasm_bindgen::JsCast;
 use web_sys::{
     HtmlCanvasElement, WebGl2RenderingContext, WebGlProgram, WebGlShader, WebGlUniformLocation,
 };
+use crate::display::Display;
 
 const CHIP8_WIDTH: usize = 64;
 const CHIP8_HEIGHT: usize = 32;
 
 const SUPER_CHIP8_WIDTH: u8 = 128;
 const SUPER_CHIP8_HEIGHT: u8 = 64;
-
-pub trait ScreenDisplay {
-    fn clear(&self);
-}
 
 pub struct WebGLDisplay {
     gl_context: WebGl2RenderingContext,
@@ -45,28 +42,23 @@ impl Default for WebGLDisplay {
     }
 }
 
-impl WebGLDisplay {
-    pub fn clear(&mut self) {
+impl Display for WebGLDisplay {
+    fn clear(&mut self) {
         self.vram.iter_mut().for_each(|m| *m = 0);
         self.gl_context.clear_color(0.0, 0.0, 0.0, 1.0);
         self.gl_context
             .clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
     }
 
-    pub fn is_pixel_on(&self, x: usize, y: usize) -> bool {
-        debug!("x is: {}, y is: {}, width is: {}", x, y, self.get_width());
-        self.vram[y * self.get_width() + x] == 1
-    }
-
-    pub fn get_height(&self) -> usize {
-        CHIP8_HEIGHT
-    }
-
-    pub fn get_width(&self) -> usize {
+    fn get_width(&self) -> usize {
         CHIP8_WIDTH
     }
 
-    pub fn draw_box(&mut self, x: usize, y: usize, block_size: f32, turn_on: bool) {
+    fn get_height(&self) -> usize {
+        CHIP8_HEIGHT
+    }
+
+    fn draw_pixel(&mut self, x: usize, y: usize, block_size: f32, turn_on: bool) {
         // set color
         if turn_on {
             self.gl_context
@@ -96,7 +88,13 @@ impl WebGLDisplay {
             .draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, 6);
     }
 
-    pub fn init(&mut self) {
+    fn get_pixel(&self, x: usize, y: usize) -> bool {
+        debug!("x is: {}, y is: {}, width is: {}", x, y, self.get_width());
+        self.vram[y * self.get_width() + x] == 1
+    }
+
+
+    fn initialize(&mut self) {
         let program = self.get_program();
 
         let position_attribute_location =
@@ -144,6 +142,9 @@ impl WebGLDisplay {
             self.canvas.height() as f32,
         );
     }
+}
+
+impl WebGLDisplay {
 
     fn get_program(&self) -> WebGlProgram {
         let vertex_shader = self.compile_shader(
