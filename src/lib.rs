@@ -5,10 +5,10 @@ mod instruction;
 
 use crate::chip8::CHIP8;
 use crate::cpu::CPU;
+use crate::display::Display;
 use log::Level;
 use std::panic;
 use wasm_bindgen::prelude::*;
-use crate::display::Display;
 
 #[wasm_bindgen]
 extern "C" {

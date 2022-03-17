@@ -1,9 +1,9 @@
+use crate::display::Display;
 use log::debug;
 use wasm_bindgen::JsCast;
 use web_sys::{
     HtmlCanvasElement, WebGl2RenderingContext, WebGlProgram, WebGlShader, WebGlUniformLocation,
 };
-use crate::display::Display;
 
 const CHIP8_WIDTH: usize = 64;
 const CHIP8_HEIGHT: usize = 32;
@@ -93,7 +93,6 @@ impl Display for WebGLDisplay {
         self.vram[y * self.get_width() + x] == 1
     }
 
-
     fn initialize(&mut self) {
         let program = self.get_program();
 
@@ -145,7 +144,6 @@ impl Display for WebGLDisplay {
 }
 
 impl WebGLDisplay {
-
     fn get_program(&self) -> WebGlProgram {
         let vertex_shader = self.compile_shader(
             WebGl2RenderingContext::VERTEX_SHADER,
