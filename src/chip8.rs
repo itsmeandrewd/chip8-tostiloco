@@ -1,4 +1,5 @@
 use crate::instruction::Instruction;
+use crate::screen_display::WebGLDisplay;
 use crate::CPU;
 
 // where in memory roms should start being read from
@@ -7,6 +8,7 @@ const ROM_START_ADDRESS: usize = 0x200;
 pub struct CHIP8 {
     pub cpu: CPU,
     pub memory: [u8; 4096],
+    pub(crate) display: WebGLDisplay,
 }
 
 impl Default for CHIP8 {
@@ -14,6 +16,7 @@ impl Default for CHIP8 {
         Self {
             cpu: CPU::default(),
             memory: [0; 4096],
+            display: WebGLDisplay::default(),
         }
     }
 }
@@ -34,7 +37,7 @@ impl CHIP8 {
     fn execute_instruction(&mut self, instruction: Instruction) {
         match instruction.first {
             0x0 => match instruction.kk {
-                0xe0 => self.cpu.cls(),
+                0xe0 => self.cpu.cls(&mut self.display),
                 _ => self.unknown_instruction(&instruction),
             },
             0x1 => self.cpu.jp(instruction.nnn),
@@ -47,6 +50,7 @@ impl CHIP8 {
                 instruction.y,
                 instruction.n as usize,
                 &self.memory,
+                &mut self.display,
             ),
             _ => self.unknown_instruction(&instruction),
         }

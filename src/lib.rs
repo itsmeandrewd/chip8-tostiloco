@@ -1,5 +1,5 @@
 mod chip8;
-pub mod cpu;
+mod cpu;
 mod instruction;
 mod screen_display;
 
@@ -24,7 +24,7 @@ pub fn boot_emulator(rom_bytes: &[u8]) {
     init_logging();
 
     let mut chip8: CHIP8 = Default::default();
-    chip8.cpu.display.init();
+    chip8.display.init();
     chip8.load_rom_into_memory(rom_bytes);
     chip8.fetch_and_execute_instruction();
     chip8.fetch_and_execute_instruction();

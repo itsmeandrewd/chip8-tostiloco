@@ -1,3 +1,4 @@
+use log::debug;
 use wasm_bindgen::JsCast;
 use web_sys::{
     HtmlCanvasElement, WebGl2RenderingContext, WebGlProgram, WebGlShader, WebGlUniformLocation,
@@ -53,6 +54,7 @@ impl WebGLDisplay {
     }
 
     pub fn is_pixel_on(&self, x: usize, y: usize) -> bool {
+        debug!("x is: {}, y is: {}, width is: {}", x, y, self.get_width());
         self.vram[y * self.get_width() + x] == 1
     }
 
@@ -123,8 +125,12 @@ impl WebGLDisplay {
             0,                             // offset
         );
 
-        self.gl_context
-            .viewport(0, 0, self.canvas.width() as i32, self.canvas.height() as i32);
+        self.gl_context.viewport(
+            0,
+            0,
+            self.canvas.width() as i32,
+            self.canvas.height() as i32,
+        );
         self.gl_context.clear_color(0.0, 0.0, 0.0, 0.0);
         self.gl_context.clear(
             WebGl2RenderingContext::COLOR_BUFFER_BIT | WebGl2RenderingContext::DEPTH_BUFFER_BIT,
