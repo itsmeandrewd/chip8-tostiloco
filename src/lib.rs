@@ -1,5 +1,5 @@
 mod chip8;
-mod cpu;
+pub mod cpu;
 mod instruction;
 mod screen_display;
 

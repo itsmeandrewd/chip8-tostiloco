@@ -10,7 +10,7 @@ pub struct CPU {
     delay_timer: u8,
     sound_timer: u8,
 
-    pub(crate) display: WebGLDisplay,
+    pub display: WebGLDisplay,
 }
 
 impl Default for CPU {
