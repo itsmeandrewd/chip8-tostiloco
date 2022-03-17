@@ -55,7 +55,7 @@ impl CPU {
         let mut y_coord = (self.v_registers[vy] % 32) as usize;
         self.v_registers[0xf] = 0;
 
-        let pixel_size = 40.0;
+        let pixel_size = 10.0;
         for row in 0..n {
             let sprite_data = memory[(self.address_i as usize) + row];
             for bit in 0..8 {
@@ -73,6 +73,7 @@ impl CPU {
                 }
             }
             y_coord += 1;
+            x_coord = 0;
             if y_coord >= self.display.get_height() {
                 break;
             }

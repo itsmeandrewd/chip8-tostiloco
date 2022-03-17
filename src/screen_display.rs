@@ -1,4 +1,3 @@
-use log::debug;
 use wasm_bindgen::JsCast;
 use web_sys::{
     HtmlCanvasElement, WebGl2RenderingContext, WebGlProgram, WebGlShader, WebGlUniformLocation,
@@ -52,10 +51,6 @@ impl WebGLDisplay {
             .clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
     }
 
-    pub fn draw(&mut self, x: usize, y: usize, n: usize, turn_on: bool) {
-        self.draw_box(x, y, 50.0, turn_on);
-    }
-
     pub fn is_pixel_on(&self, x: usize, y: usize) -> bool {
         self.vram[y * self.get_width() + x] == 1
     }
@@ -94,11 +89,6 @@ impl WebGLDisplay {
             );
         }
 
-        self.gl_context
-            .draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, 6);
-    }
-
-    pub fn finish_drawing(&self) {
         self.gl_context
             .draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, 6);
     }

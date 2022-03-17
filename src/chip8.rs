@@ -1,5 +1,4 @@
 use crate::instruction::Instruction;
-use crate::screen_display::WebGLDisplay;
 use crate::CPU;
 
 // where in memory roms should start being read from
