@@ -34,42 +34,8 @@ impl CHIP8 {
         Instruction::new(bytes)
     }
 
-    fn execute_instruction(&mut self, instruction: Instruction) {
-        match instruction.first {
-            0x0 => match instruction.kk {
-                0xe0 => self.cpu.cls(&mut self.display),
-                _ => self.unknown_instruction(&instruction),
-            },
-            0x1 => self.cpu.jp(instruction.nnn),
-            0x3 => self.cpu.se_vx(instruction.x, instruction.kk),
-            0x6 => self.cpu.ld_vx(instruction.x, instruction.kk),
-            0x7 => self.cpu.add_vx(instruction.x, instruction.kk),
-            0xa => self.cpu.ld_i(instruction.nnn),
-            0xd => self.cpu.drw(
-                instruction.x,
-                instruction.y,
-                instruction.n as usize,
-                &self.memory,
-                &mut self.display,
-            ),
-            _ => self.unknown_instruction(&instruction),
-        }
-
-        if instruction.first != 0x2 && instruction.first != 0x1 {
-            // dont move the pc with JP or CALL instructions
-            self.cpu.program_counter += 2;
-        }
-    }
-
-    fn unknown_instruction(&self, instruction: &Instruction) {
-        panic!(
-            "Encountered unknown instruction {:#02x}",
-            instruction.raw_bytes
-        );
-    }
-
     pub fn fetch_and_execute_instruction(&mut self) {
         let instruction = self.fetch_instruction();
-        self.execute_instruction(instruction);
+        self.cpu.execute_instruction(instruction, &mut self.memory, &mut self.display);
     }
 }

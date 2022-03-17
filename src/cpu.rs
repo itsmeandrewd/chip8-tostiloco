@@ -1,5 +1,6 @@
 use crate::screen_display::WebGLDisplay;
 use log::debug;
+use crate::instruction::Instruction;
 
 pub struct CPU {
     pub address_i: u16,
@@ -93,6 +94,40 @@ impl CPU {
                 break;
             }
         }
+    }
+
+    pub(crate) fn execute_instruction(&mut self, instruction: Instruction, memory: &mut [u8], display: &mut WebGLDisplay) {
+        match instruction.first {
+            0x0 => match instruction.kk {
+                0xe0 => self.cls(display),
+                _ => self.unknown_instruction(&instruction),
+            },
+            0x1 => self.jp(instruction.nnn),
+            0x3 => self.se_vx(instruction.x, instruction.kk),
+            0x6 => self.ld_vx(instruction.x, instruction.kk),
+            0x7 => self.add_vx(instruction.x, instruction.kk),
+            0xa => self.ld_i(instruction.nnn),
+            0xd => self.drw(
+                instruction.x,
+                instruction.y,
+                instruction.n as usize,
+                memory,
+                display
+            ),
+            _ => self.unknown_instruction(&instruction),
+        }
+
+        if instruction.first != 0x2 && instruction.first != 0x1 {
+            // dont move the pc with JP or CALL instructions
+            self.program_counter += 2;
+        }
+    }
+
+    fn unknown_instruction(&self, instruction: &Instruction) {
+        panic!(
+            "Encountered unknown instruction {:#02x}",
+            instruction.raw_bytes
+        );
     }
 }
 
