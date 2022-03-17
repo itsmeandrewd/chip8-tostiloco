@@ -1,9 +1,21 @@
 use crate::Display;
 
-struct NullDisplay {}
+pub struct NullDisplay {
+    pub cleared: bool
+}
+
+impl Default for NullDisplay {
+    fn default() -> Self {
+        Self {
+            cleared: false
+        }
+    }
+}
 
 impl Display for NullDisplay {
-    fn clear(&mut self) {}
+    fn clear(&mut self) {
+        self.cleared = true;
+    }
 
     fn get_width(&self) -> usize {
         1

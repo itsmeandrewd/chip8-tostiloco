@@ -138,27 +138,76 @@ impl CPU {
 
 #[cfg(test)]
 mod test {
+    use crate::display::null::NullDisplay;
     use super::*;
 
     #[test]
-    fn cls() {}
+    fn cls() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0x00e0);
+
+        assert!(!display.cleared);
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        assert!(display.cleared);
+    }
+
+    #[test]
+    fn ld_i() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0xa123);
+
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        assert_eq!(cpu.address_i, 0x123);
+    }
+
     #[test]
     fn ld_vx() {
         let mut cpu = CPU::default();
-        cpu.ld_vx(0x5, 0x13);
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0x6513);
+
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
         assert_eq!(cpu.v_registers[0x5], 0x13);
     }
 
     #[test]
     fn se_vx() {
         let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0x3307);
+
         cpu.program_counter = 0x5;
         cpu.v_registers[0x3] = 0x8;
 
-        cpu.se_vx(0x3, 0x7);
-        assert_eq!(cpu.program_counter, 0x5);
-
-        cpu.se_vx(0x3, 0x8);
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
         assert_eq!(cpu.program_counter, 0x7);
+
+        cpu.program_counter = 0x5;
+        let instruction = Instruction::new(0x3308);
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        assert_eq!(cpu.program_counter, 0x9);
+    }
+
+    #[test]
+    fn jp() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0x1aba);
+
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        assert_eq!(cpu.program_counter, 0xaba);
+    }
+
+    #[test]
+    fn add_vx() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0x7c05);
+
+        cpu.v_registers[0xc] = 0x12;
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        assert_eq!(cpu.v_registers[0xc], 0x17);
     }
 }
