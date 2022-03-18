@@ -21,6 +21,12 @@ pub struct WebGLDisplay {
 impl Default for WebGLDisplay {
     fn default() -> Self {
         let document = web_sys::window().unwrap().document().unwrap();
+        let context_options = js_sys::Object::new();
+        js_sys::Reflect::set(
+            &context_options,
+            &"preserveDrawingBuffer".into(),
+            &wasm_bindgen::JsValue::TRUE,
+        );
         let canvas = document
             .query_selector("#glCanvas")
             .unwrap()
@@ -28,7 +34,7 @@ impl Default for WebGLDisplay {
             .dyn_into::<web_sys::HtmlCanvasElement>()
             .unwrap();
         let gl_context = canvas
-            .get_context("webgl2")
+            .get_context_with_context_options("webgl2", &context_options)
             .unwrap()
             .unwrap()
             .dyn_into::<WebGl2RenderingContext>()

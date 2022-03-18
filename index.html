@@ -7,14 +7,20 @@
     <body>
         <form>
             <input type="file" id="romFile" accept=".ch8">
+            <button type="button" id="tick">Tick!</button>
             <br><br>
-            <canvas id="glCanvas" width="640" height="320"></canvas>
         </form>
+        <canvas id="glCanvas" width="640" height="320"></canvas>
         <script type="module">
-            import init, {boot_emulator} from "./pkg/moldy_chip.js";
+            import init, {boot_emulator, load_rom, tick} from "./pkg/moldy_chip.js";
 
             function main() {
+                boot_emulator();
                 loadRomFileHandler();
+                const button = document.querySelector('#tick');
+                button.addEventListener('click', event => {
+                    tick();
+                });
             }
 
             function loadRomFileHandler() {
@@ -24,7 +30,7 @@
                         let reader = new FileReader();
                         reader.onloadend = () => {
                             let byteArray = new Uint8Array(reader.result);
-                            boot_emulator(byteArray);
+                            load_rom(byteArray);
                         };
                         reader.readAsArrayBuffer(romFileInput.files[0]);
                     }
