@@ -4,9 +4,10 @@ use log::debug;
 
 pub struct CPU {
     pub address_i: u16,
-    pub program_counter: usize,
+    pub program_counter: u16,
     pub stack_pointer: u8,
     pub v_registers: [u8; 16],
+    stack: [u16; 16],
 
     delay_timer: u8,
     sound_timer: u8,
@@ -18,6 +19,7 @@ impl Default for CPU {
             address_i: 0,
             program_counter: 0x200,
             stack_pointer: 0,
+            stack: [0; 16],
             v_registers: [0; 16],
             delay_timer: 0,
             sound_timer: 0,
@@ -31,15 +33,39 @@ impl CPU {
         self.address_i = 0;
         self.program_counter = 0x200;
         self.stack_pointer = 0;
+        self.stack = [0; 16];
         self.v_registers = [0;16];
         self.delay_timer = 0;
         self.sound_timer = 0;
 
         self.cls(display);
     }
+
+    pub fn add_vx(&mut self, x: usize, byte: u8) {
+        debug!("ADD V{}, {:#01x}", x, byte);
+        self.v_registers[x] += byte;
+    }
+
+    pub fn add_i_vx(&mut self, x: usize) {
+        debug!("ADD I, V{}", x);
+        self.address_i += self.v_registers[x] as u16;
+    }
+
+    pub fn call(&mut self, addr: u16) {
+        debug!("CALL {:#02x}", addr);
+        self.stack[self.stack_pointer as usize] = self.program_counter + 2;
+        self.stack_pointer += 1;
+        self.program_counter = addr;
+    }
+
     pub fn cls(&mut self, display: &mut dyn Display) {
         debug!("CLS");
         display.clear();
+    }
+
+    pub fn jp(&mut self, addr: u16) {
+        debug!("JP {:#02x}", addr);
+        self.program_counter = addr;
     }
 
     pub fn ld_i(&mut self, addr: u16) {
@@ -50,6 +76,12 @@ impl CPU {
     pub fn ld_vx(&mut self, x: usize, byte: u8) {
         debug!("LD V{}, {:#01x}", x, byte);
         self.v_registers[x] = byte;
+    }
+
+    pub fn ret(&mut self) {
+        debug!("RET");
+        self.stack_pointer -= 1;
+        self.program_counter = self.stack[self.stack_pointer as usize];
     }
 
     pub fn se_vx(&mut self, vx: usize, byte: u8) {
@@ -64,21 +96,6 @@ impl CPU {
         if self.v_registers[vx] != byte {
             self.program_counter += 2;
         }
-    }
-
-    pub fn jp(&mut self, addr: u16) {
-        debug!("JP {:#02x}", addr);
-        self.program_counter = addr as usize;
-    }
-
-    pub fn add_vx(&mut self, x: usize, byte: u8) {
-        debug!("ADD V{}, {:#01x}", x, byte);
-        self.v_registers[x] += byte;
-    }
-
-    pub fn add_i_vx(&mut self, x: usize) {
-        debug!("ADD I, V{}", x);
-        self.address_i += self.v_registers[x] as u16;
     }
 
     pub fn drw(
@@ -129,9 +146,11 @@ impl CPU {
         match instruction.first {
             0x0 => match instruction.kk {
                 0xe0 => self.cls(display),
+                0xee => self.ret(),
                 _ => self.unknown_instruction(&instruction),
             },
             0x1 => self.jp(instruction.nnn),
+            0x2 => self.call(instruction.nnn),
             0x3 => self.se_vx(instruction.x, instruction.kk),
             0x4 => self.sne_vx(instruction.x, instruction.kk),
             0x6 => self.ld_vx(instruction.x, instruction.kk),
@@ -151,8 +170,8 @@ impl CPU {
             _ => self.unknown_instruction(&instruction),
         }
 
-        if instruction.first != 0x2 && instruction.first != 0x1 {
-            // dont move the pc with JP or CALL instructions
+        if instruction.first != 0x2 && instruction.first != 0x1 && instruction.raw_bytes != 0x00ee {
+            // dont move the pc with JP, CALL, or RET instructions
             self.program_counter += 2;
         }
     }
@@ -171,6 +190,42 @@ mod test {
     use super::*;
 
     #[test]
+    fn add_vx() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0x7c05);
+
+        cpu.v_registers[0xc] = 0x12;
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        assert_eq!(cpu.v_registers[0xc], 0x17);
+    }
+
+    #[test]
+    fn add_i_vx() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0xfb1e);
+
+        cpu.address_i = 0x7;
+        cpu.v_registers[0xb] = 0x3;
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        assert_eq!(cpu.address_i, 0xa);
+    }
+
+    #[test]
+    fn call() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0x2123);
+
+        cpu.program_counter = 0xcbd;
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+
+        assert_eq!(cpu.program_counter, 0x123);
+        assert_eq!(cpu.stack[cpu.stack_pointer as usize - 1], 0xcbf);
+    }
+
+    #[test]
     fn cls() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
@@ -179,6 +234,16 @@ mod test {
         assert!(!display.cleared);
         cpu.execute_instruction(instruction, &mut [0], &mut display);
         assert!(display.cleared);
+    }
+
+    #[test]
+    fn jp() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0x1aba);
+
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        assert_eq!(cpu.program_counter, 0xaba);
     }
 
     #[test]
@@ -238,36 +303,18 @@ mod test {
     }
 
     #[test]
-    fn jp() {
+    fn ret() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
-        let instruction = Instruction::new(0x1aba);
+        let instruction = Instruction::new(0x2123);
 
+        cpu.program_counter = 0xcbd;
         cpu.execute_instruction(instruction, &mut [0], &mut display);
-        assert_eq!(cpu.program_counter, 0xaba);
-    }
 
-    #[test]
-    fn add_vx() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let instruction = Instruction::new(0x7c05);
-
-        cpu.v_registers[0xc] = 0x12;
+        let instruction = Instruction::new(0x00ee);
         cpu.execute_instruction(instruction, &mut [0], &mut display);
-        assert_eq!(cpu.v_registers[0xc], 0x17);
-    }
 
-    #[test]
-    fn add_i_vx() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let instruction = Instruction::new(0xfb1e);
-
-        cpu.address_i = 0x7;
-        cpu.v_registers[0xb] = 0x3;
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
-        assert_eq!(cpu.address_i, 0xa);
+        assert_eq!(cpu.program_counter, 0xcbf);
     }
 
     #[test]

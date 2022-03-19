@@ -32,8 +32,8 @@ impl CHIP8 {
     }
 
     fn fetch_instruction(&self) -> Instruction {
-        let bytes = (self.memory[self.cpu.program_counter] as u16) << 8
-            | (self.memory[self.cpu.program_counter + 1] as u16);
+        let bytes = (self.memory[self.cpu.program_counter as usize] as u16) << 8
+            | (self.memory[self.cpu.program_counter as usize + 1] as u16);
 
         Instruction::new(bytes)
     }
