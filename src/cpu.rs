@@ -68,6 +68,11 @@ impl CPU {
         self.program_counter = addr;
     }
 
+    pub fn ld_dt_vx(&mut self, x: usize) {
+        debug!("LD DT, V{}", x);
+        self.delay_timer = self.v_registers[x];
+    }
+
     pub fn ld_i(&mut self, addr: u16) {
         debug!("LD I, {:#02x}", addr);
         self.address_i = addr;
@@ -76,6 +81,11 @@ impl CPU {
     pub fn ld_vx(&mut self, x: usize, byte: u8) {
         debug!("LD V{}, {:#01x}", x, byte);
         self.v_registers[x] = byte;
+    }
+
+    pub fn ld_vx_dt(&mut self, x: usize) {
+        debug!("LD V{}, DT", x);
+        self.v_registers[x] = self.delay_timer;
     }
 
     pub fn ret(&mut self) {
@@ -164,6 +174,8 @@ impl CPU {
                 display,
             ),
             0xf => match instruction.kk {
+                0x07 => self.ld_vx_dt(instruction.x),
+                0x15 => self.ld_dt_vx(instruction.x),
                 0x1e => self.add_i_vx(instruction.x),
                 _ => self.unknown_instruction(&instruction)
             },
@@ -244,6 +256,28 @@ mod test {
 
         cpu.execute_instruction(instruction, &mut [0], &mut display);
         assert_eq!(cpu.program_counter, 0xaba);
+    }
+
+    #[test]
+    fn ld_dt_vx() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0xf315);
+
+        cpu.v_registers[0x3] = 0xbb;
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        assert_eq!(cpu.delay_timer, 0xbb);
+    }
+
+    #[test]
+    fn ld_vx_dt() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0xf407);
+
+        cpu.delay_timer = 0xf;
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        assert_eq!(cpu.v_registers[0x4], cpu.delay_timer);
     }
 
     #[test]
