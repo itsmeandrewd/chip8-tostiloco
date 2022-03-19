@@ -31,7 +31,6 @@ pub fn boot_emulator() {
         let mut emulator = CHIP8::default();
         emulator.display.initialize();
         chip8 = Some(emulator);
-        //chip8.as_mut().unwrap().display.initialize();
     }
 }
 
@@ -40,36 +39,6 @@ pub fn tick() {
     unsafe {
         let mut emulator: &mut CHIP8 = chip8.as_mut().unwrap();
         emulator.fetch_and_execute_instruction();
-        /*emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();
-        emulator.fetch_and_execute_instruction();*/
     }
 }
 

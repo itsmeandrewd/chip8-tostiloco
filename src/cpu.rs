@@ -95,7 +95,7 @@ impl CPU {
                     display.draw_pixel(x_coord, y_coord, pixel_size, true);
                 }
 
-                x_coord += 1;
+                x_coord -= 1;
                 if x_coord >= display.get_width() {
                     break;
                 }

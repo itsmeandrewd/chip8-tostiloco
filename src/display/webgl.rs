@@ -21,6 +21,9 @@ pub struct WebGLDisplay {
 impl Default for WebGLDisplay {
     fn default() -> Self {
         let document = web_sys::window().unwrap().document().unwrap();
+
+        // prevent webgl from clearing the buffer on each draw automatically so we can
+        // preserve our previous pixels
         let context_options = js_sys::Object::new();
         js_sys::Reflect::set(
             &context_options,
