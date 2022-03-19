@@ -22,7 +22,11 @@ impl Default for CHIP8 {
 }
 
 impl CHIP8 {
-    pub(crate) fn load_rom_into_memory(&mut self, rom_bytes: &[u8]) {
+    pub fn reset(&mut self) {
+        self.cpu.reset(&mut self.display);
+    }
+
+    pub fn load_rom_into_memory(&mut self, rom_bytes: &[u8]) {
         self.memory[ROM_START_ADDRESS..ROM_START_ADDRESS + rom_bytes.len()]
             .copy_from_slice(&rom_bytes);
     }

@@ -46,6 +46,8 @@ pub fn tick() {
 pub fn load_rom(rom_bytes: &[u8]) {
 
     unsafe {
-        chip8.as_mut().unwrap().load_rom_into_memory(rom_bytes);
+        let emulator = chip8.as_mut().unwrap();
+        emulator.reset();
+        emulator.load_rom_into_memory(rom_bytes);
     }
 }

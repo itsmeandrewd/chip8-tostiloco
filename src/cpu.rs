@@ -26,6 +26,17 @@ impl Default for CPU {
 }
 
 impl CPU {
+
+    pub fn reset(&mut self, display: &mut dyn Display) {
+        self.address_i = 0;
+        self.program_counter = 0x200;
+        self.stack_pointer = 0;
+        self.v_registers = [0;16];
+        self.delay_timer = 0;
+        self.sound_timer = 0;
+
+        self.cls(display);
+    }
     pub fn cls(&mut self, display: &mut dyn Display) {
         debug!("CLS");
         display.clear();
