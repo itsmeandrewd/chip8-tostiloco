@@ -1,6 +1,7 @@
 use crate::display::Display;
 use crate::instruction::Instruction;
 use log::debug;
+use rand::{Rng, thread_rng};
 
 pub struct CPU {
     pub address_i: u16,
@@ -102,6 +103,12 @@ impl CPU {
         self.program_counter = self.stack[self.stack_pointer as usize];
     }
 
+    pub fn rnd(&mut self, x: usize, byte: u8) {
+        let mut rng = thread_rng();
+        let random_num = rng.gen_range(0, 256);
+        self.v_registers[x] = random_num as u8 & byte;
+    }
+
     pub fn se_vx(&mut self, vx: usize, byte: u8) {
         debug!("SE V{}, {:#01x}", vx, byte);
         if self.v_registers[vx] == byte {
@@ -174,6 +181,7 @@ impl CPU {
             0x6 => self.ld_vx(instruction.x, instruction.kk),
             0x7 => self.add_vx(instruction.x, instruction.kk),
             0xa => self.ld_i(instruction.nnn),
+            0xc => self.rnd(instruction.x, instruction.kk),
             0xd => self.drw(
                 instruction.x,
                 instruction.y,
