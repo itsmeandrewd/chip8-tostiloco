@@ -7,12 +7,17 @@
     <body>
         <form>
             <input type="file" id="romFile" accept=".ch8">
+            <br>
+            <input type="radio" id="execute" name="run_type" value="0" checked>
+            <label for="execute">Execute</label>
+            <input type="radio" id="execute_tick" name="run_type" value="1">
+            <label for="execute_tick">Tick</label>
             <button type="button" id="tick">Tick!</button>
             <br><br>
         </form>
         <canvas id="glCanvas" width="640" height="320"></canvas>
         <script type="module">
-            import init, {boot_emulator, load_rom, tick} from "./pkg/moldy_chip.js";
+            import init, {boot_emulator, load_rom, tick, handle_timers} from "./pkg/moldy_chip.js";
 
             function main() {
                 boot_emulator();
@@ -30,7 +35,19 @@
                         let reader = new FileReader();
                         reader.onloadend = () => {
                             let byteArray = new Uint8Array(reader.result);
+                            let run_type = parseInt(document.querySelector('[name="run_type"]').value);
                             load_rom(byteArray);
+                            if (run_type === 0) {
+                                let cpu_speed = 60.0;
+                                let clock_speed = 60.0;
+                                setInterval(() => {
+                                    tick()
+                                }, 1000.0 / cpu_speed);
+
+                                setInterval(() => {
+                                    handle_timers()
+                                }, 1000.0 / clock_speed);
+                            }
                         };
                         reader.readAsArrayBuffer(romFileInput.files[0]);
                     }

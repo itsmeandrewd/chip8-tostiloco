@@ -3,13 +3,11 @@ mod cpu;
 mod display;
 mod instruction;
 
-use std::cell::RefCell;
 use crate::chip8::CHIP8;
 use crate::cpu::CPU;
 use crate::display::Display;
-use log::Level;
+use log::{debug, Level};
 use std::panic;
-use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -17,7 +15,7 @@ extern "C" {
     pub fn alert(s: &str);
 }
 
-static mut chip8: Option<CHIP8> = None;
+static mut EMULATOR: Option<CHIP8> = None;
 
 pub fn init_logging() {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
@@ -30,23 +28,29 @@ pub fn boot_emulator() {
     unsafe {
         let mut emulator = CHIP8::default();
         emulator.display.initialize();
-        chip8 = Some(emulator);
+        EMULATOR = Some(emulator);
     }
 }
 
 #[wasm_bindgen]
 pub fn tick() {
     unsafe {
-        let mut emulator: &mut CHIP8 = chip8.as_mut().unwrap();
+        let emulator: &mut CHIP8 = EMULATOR.as_mut().unwrap();
         emulator.fetch_and_execute_instruction();
     }
 }
 
 #[wasm_bindgen]
-pub fn load_rom(rom_bytes: &[u8]) {
-
+pub fn handle_timers() {
     unsafe {
-        let emulator = chip8.as_mut().unwrap();
+        EMULATOR.as_mut().unwrap().cpu.handler_timers();
+    }
+}
+
+#[wasm_bindgen]
+pub fn load_rom(rom_bytes: &[u8]) {
+    unsafe {
+        let emulator = EMULATOR.as_mut().unwrap();
         emulator.reset();
         emulator.load_rom_into_memory(rom_bytes);
     }

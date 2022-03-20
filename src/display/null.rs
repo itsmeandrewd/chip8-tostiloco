@@ -2,14 +2,14 @@ use crate::Display;
 
 pub struct NullDisplay {
     pub cleared: bool,
-    pub vram: [u8; 64 * 32]
+    pub vram: [u8; 64 * 32],
 }
 
 impl Default for NullDisplay {
     fn default() -> Self {
         Self {
             cleared: false,
-            vram: [0; 64 * 32]
+            vram: [0; 64 * 32],
         }
     }
 }

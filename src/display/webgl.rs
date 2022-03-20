@@ -1,5 +1,4 @@
 use crate::display::Display;
-use log::debug;
 use wasm_bindgen::JsCast;
 use web_sys::{
     HtmlCanvasElement, WebGl2RenderingContext, WebGlProgram, WebGlShader, WebGlUniformLocation,
@@ -8,8 +7,8 @@ use web_sys::{
 const CHIP8_WIDTH: usize = 64;
 const CHIP8_HEIGHT: usize = 32;
 
-const SUPER_CHIP8_WIDTH: u8 = 128;
-const SUPER_CHIP8_HEIGHT: u8 = 64;
+//const SUPER_CHIP8_WIDTH: u8 = 128;
+//const SUPER_CHIP8_HEIGHT: u8 = 64;
 
 pub struct WebGLDisplay {
     gl_context: WebGl2RenderingContext,
@@ -29,7 +28,7 @@ impl Default for WebGLDisplay {
             &context_options,
             &"preserveDrawingBuffer".into(),
             &wasm_bindgen::JsValue::TRUE,
-        );
+        ).unwrap();
         let canvas = document
             .query_selector("#glCanvas")
             .unwrap()
@@ -78,7 +77,6 @@ impl Display for WebGLDisplay {
                 .uniform4f(self.color_uniform_location.as_ref(), 0.0, 0.0, 0.0, 1.0);
             self.vram[y * self.get_width() + x] = 0;
         }
-
 
         let x1 = x as f32 * block_size;
         let x2 = x1 + block_size;

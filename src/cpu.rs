@@ -28,17 +28,25 @@ impl Default for CPU {
 }
 
 impl CPU {
-
     pub fn reset(&mut self, display: &mut dyn Display) {
         self.address_i = 0;
         self.program_counter = 0x200;
         self.stack_pointer = 0;
         self.stack = [0; 16];
-        self.v_registers = [0;16];
+        self.v_registers = [0; 16];
         self.delay_timer = 0;
         self.sound_timer = 0;
 
         self.cls(display);
+    }
+
+    pub fn handler_timers(&mut self) {
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
+        }
+        if self.sound_timer > 0 {
+            self.sound_timer -= 1;
+        }
     }
 
     pub fn add_vx(&mut self, x: usize, byte: u8) {
@@ -177,7 +185,7 @@ impl CPU {
                 0x07 => self.ld_vx_dt(instruction.x),
                 0x15 => self.ld_dt_vx(instruction.x),
                 0x1e => self.add_i_vx(instruction.x),
-                _ => self.unknown_instruction(&instruction)
+                _ => self.unknown_instruction(&instruction),
             },
             _ => self.unknown_instruction(&instruction),
         }
@@ -198,8 +206,8 @@ impl CPU {
 
 #[cfg(test)]
 mod test {
-    use crate::display::null::NullDisplay;
     use super::*;
+    use crate::display::null::NullDisplay;
 
     #[test]
     fn add_vx() {
@@ -362,9 +370,7 @@ mod test {
         // ...*..
         // ..*.*.
         // .*..*.
-        let sprite_data: [u8; 3] = [
-          0b00100, 0b01010, 0b10010
-        ];
+        let sprite_data: [u8; 3] = [0b00100, 0b01010, 0b10010];
         cpu.address_i = 0x500;
         memory[0x500..0x500 + sprite_data.len()].copy_from_slice(&sprite_data);
         cpu.execute_instruction(instruction, &mut memory, &mut display);
@@ -376,6 +382,5 @@ mod test {
         assert_eq!(display.vram[3], 1);
         assert_eq!(display.vram[4], 0);
         assert_eq!(display.vram[5], 0);
-
     }
 }
