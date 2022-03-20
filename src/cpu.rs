@@ -97,6 +97,11 @@ impl CPU {
         self.v_registers[x] = self.delay_timer;
     }
 
+    pub fn ld_vx_vy(&mut self, x: usize, y: usize) {
+        debug!("LD V{}, V{}", x, y) ;
+        self.v_registers[x] = self.v_registers[y];
+    }
+
     pub fn ret(&mut self) {
         debug!("RET");
         self.stack_pointer -= 1;
@@ -180,6 +185,10 @@ impl CPU {
             0x4 => self.sne_vx(instruction.x, instruction.kk),
             0x6 => self.ld_vx(instruction.x, instruction.kk),
             0x7 => self.add_vx(instruction.x, instruction.kk),
+            0x8 => match instruction.n {
+                0x0 => self.ld_vx_vy(instruction.x, instruction.y),
+                _ => self.unknown_instruction(&instruction),
+            },
             0xa => self.ld_i(instruction.nnn),
             0xc => self.rnd(instruction.x, instruction.kk),
             0xd => self.drw(
@@ -294,6 +303,19 @@ mod test {
         cpu.delay_timer = 0xf;
         cpu.execute_instruction(instruction, &mut [0], &mut display);
         assert_eq!(cpu.v_registers[0x4], cpu.delay_timer);
+    }
+
+    #[test]
+    fn ld_vx_vy() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let instruction = Instruction::new(0x8de0);
+
+        cpu.v_registers[0xd] = 0xff;
+        cpu.v_registers[0xe] = 0x12;
+        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        assert_eq!(cpu.v_registers[0xd], 0x12);
+
     }
 
     #[test]
