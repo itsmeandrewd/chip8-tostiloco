@@ -7,51 +7,82 @@
     <body>
         <form>
             <input type="file" id="romFile" accept=".ch8">
+            <br><br>
+            <select name="run_type" id="run_type">
+                <option value="0">Live</option>
+                <option value="1">Step by step</option>
+            </select>
+            <label for="run_type">Execution Mode</label>
             <br>
-            <input type="radio" id="execute" name="run_type" value="0" checked>
-            <label for="execute">Execute</label>
-            <input type="radio" id="execute_tick" name="run_type" value="1">
-            <label for="execute_tick">Tick</label>
-            <button type="button" id="tick">Tick!</button>
+            <button type="button" id="halt">Halt</button>
+            <button type="button" id="tick" style="display: none;">Tick</button>
             <br><br>
         </form>
         <canvas id="glCanvas" width="640" height="320"></canvas>
         <script type="module">
             import init, {boot_emulator, load_rom, tick, handle_timers} from "./pkg/moldy_chip.js";
 
+            let intervalIDs = [];
+
             function main() {
                 boot_emulator();
                 loadRomFileHandler();
-                const button = document.querySelector('#tick');
-                button.addEventListener('click', event => {
+
+                const tickButton = document.querySelector('#tick');
+                tickButton.addEventListener('click', _ => {
                     tick();
                 });
+
+                const haltButton = document.querySelector('#halt');
+                haltButton.addEventListener('click', _ => {
+                    haltIntervalTimers();
+                });
+
+                const runTypeSelect = document.querySelector('#run_type');
+                runTypeSelect.addEventListener('change', event => {
+                    if (event.target.value === "0") {
+                        tickButton.style.display = 'none';
+                        haltButton.style.display = 'block';
+                    } else if (event.target.value === "1") {
+                        tickButton.style.display = 'block';
+                        haltButton.style.display = 'none';
+                    }
+                });
+            }
+
+            function haltIntervalTimers () {
+                intervalIDs.forEach(timer => clearInterval(timer));
             }
 
             function loadRomFileHandler() {
                 let romFileInput = document.querySelector('#romFile');
                 romFileInput.addEventListener('change', () => {
+                    haltIntervalTimers();
+
                     if (romFileInput.files.length > 0) {
                         let reader = new FileReader();
                         reader.onloadend = () => {
                             let byteArray = new Uint8Array(reader.result);
-                            let run_type = parseInt(document.querySelector('[name="run_type"]').value);
+                            let run_type = parseInt(document.querySelector('#run_type').value);
                             load_rom(byteArray);
                             if (run_type === 0) {
                                 let cpu_speed = 60.0;
                                 let clock_speed = 60.0;
-                                setInterval(() => {
+                                let cpuIntervalID = setInterval(() => {
                                     tick()
                                 }, 1000.0 / cpu_speed);
 
-                                setInterval(() => {
+                                let timerIntervalID = setInterval(() => {
                                     handle_timers()
                                 }, 1000.0 / clock_speed);
+
+                                intervalIDs.push(cpuIntervalID);
+                                intervalIDs.push(timerIntervalID);
                             }
                         };
                         reader.readAsArrayBuffer(romFileInput.files[0]);
                     }
-                })
+                });
             }
 
             async function run() {
