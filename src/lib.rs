@@ -2,13 +2,15 @@ mod chip8;
 mod cpu;
 mod display;
 mod instruction;
+mod keyboard;
 
 use crate::chip8::CHIP8;
 use crate::cpu::CPU;
 use crate::display::Display;
-use log::{debug, Level};
+use log::Level;
 use std::panic;
 use wasm_bindgen::prelude::*;
+use crate::keyboard::Keyboard;
 
 #[wasm_bindgen]
 extern "C" {
@@ -28,7 +30,24 @@ pub fn boot_emulator() {
     unsafe {
         let mut emulator = CHIP8::default();
         emulator.display.initialize();
+        emulator.keyboard.initialize();
         EMULATOR = Some(emulator);
+    }
+}
+
+#[wasm_bindgen]
+pub fn key_down(key_code: u8) {
+    unsafe {
+        let emulator: &mut CHIP8 = EMULATOR.as_mut().unwrap();
+        emulator.keyboard.set_key(key_code);
+    }
+}
+
+#[wasm_bindgen]
+pub fn key_up() {
+    unsafe {
+        let emulator: &mut CHIP8 = EMULATOR.as_mut().unwrap();
+        emulator.keyboard.set_key(0);
     }
 }
 

@@ -20,13 +20,16 @@
         </form>
         <canvas id="glCanvas" width="640" height="320"></canvas>
         <script type="module">
-            import init, {boot_emulator, load_rom, tick, handle_timers} from "./pkg/moldy_chip.js";
+            import init, {boot_emulator, load_rom, tick, handle_timers, key_down, key_up} from "./pkg/moldy_chip.js";
 
             let intervalIDs = [];
 
             function main() {
                 boot_emulator();
                 loadRomFileHandler();
+
+                document.addEventListener('keydown', (event) => key_down(event.keyCode));
+                document.addEventListener('keyup', () => key_up());
 
                 const tickButton = document.querySelector('#tick');
                 tickButton.addEventListener('click', _ => {

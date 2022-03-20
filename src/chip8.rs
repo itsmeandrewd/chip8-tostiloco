@@ -1,5 +1,6 @@
 use crate::display::webgl::WebGLDisplay;
 use crate::instruction::Instruction;
+use crate::keyboard::browser::BrowserKeyboard;
 use crate::CPU;
 
 // where in memory roms should start being read from
@@ -9,6 +10,7 @@ pub struct CHIP8 {
     pub cpu: CPU,
     pub memory: [u8; 4096],
     pub display: WebGLDisplay,
+    pub keyboard: BrowserKeyboard,
 }
 
 impl Default for CHIP8 {
@@ -17,6 +19,7 @@ impl Default for CHIP8 {
             cpu: CPU::default(),
             memory: [0; 4096],
             display: WebGLDisplay::default(),
+            keyboard: BrowserKeyboard::default(),
         }
     }
 }
@@ -40,7 +43,11 @@ impl CHIP8 {
 
     pub fn fetch_and_execute_instruction(&mut self) {
         let instruction = self.fetch_instruction();
-        self.cpu
-            .execute_instruction(instruction, &mut self.memory, &mut self.display);
+        self.cpu.execute_instruction(
+            instruction,
+            &mut self.memory,
+            &mut self.display,
+            &mut self.keyboard,
+        );
     }
 }

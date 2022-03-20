@@ -1,7 +1,8 @@
 use crate::display::Display;
 use crate::instruction::Instruction;
+use crate::keyboard::Keyboard;
 use log::debug;
-use rand::{Rng, thread_rng};
+use rand::{thread_rng, Rng};
 
 pub struct CPU {
     pub address_i: u16,
@@ -12,6 +13,8 @@ pub struct CPU {
 
     delay_timer: u8,
     sound_timer: u8,
+
+    key_pressed: u8,
 }
 
 impl Default for CPU {
@@ -24,6 +27,7 @@ impl Default for CPU {
             v_registers: [0; 16],
             delay_timer: 0,
             sound_timer: 0,
+            key_pressed: 0,
         }
     }
 }
@@ -37,6 +41,7 @@ impl CPU {
         self.v_registers = [0; 16];
         self.delay_timer = 0;
         self.sound_timer = 0;
+        self.key_pressed = 0;
 
         self.cls(display);
     }
@@ -98,7 +103,7 @@ impl CPU {
     }
 
     pub fn ld_vx_vy(&mut self, x: usize, y: usize) {
-        debug!("LD V{}, V{}", x, y) ;
+        debug!("LD V{}, V{}", x, y);
         self.v_registers[x] = self.v_registers[y];
     }
 
@@ -117,6 +122,20 @@ impl CPU {
     pub fn se_vx(&mut self, vx: usize, byte: u8) {
         debug!("SE V{}, {:#01x}", vx, byte);
         if self.v_registers[vx] == byte {
+            self.program_counter += 2;
+        }
+    }
+
+    pub fn skp_vx(&mut self, x: usize, keyboard: &mut dyn Keyboard) {
+        debug!("SKP V{}", x);
+        if keyboard.get_key() == self.v_registers[x] {
+            self.program_counter += 2;
+        }
+    }
+
+    pub fn sknp_vx(&mut self, x: usize, keyboard: &mut dyn Keyboard) {
+        debug!("SKNP V{}", x);
+        if keyboard.get_key() != self.v_registers[x] {
             self.program_counter += 2;
         }
     }
@@ -172,6 +191,7 @@ impl CPU {
         instruction: Instruction,
         memory: &mut [u8],
         display: &mut dyn Display,
+        keyboard: &mut dyn Keyboard,
     ) {
         match instruction.first {
             0x0 => match instruction.kk {
@@ -198,6 +218,11 @@ impl CPU {
                 memory,
                 display,
             ),
+            0xe => match instruction.kk {
+                0x9e => self.skp_vx(instruction.x, keyboard),
+                0xa1 => self.sknp_vx(instruction.x, keyboard),
+                _ => self.unknown_instruction(&instruction),
+            },
             0xf => match instruction.kk {
                 0x07 => self.ld_vx_dt(instruction.x),
                 0x15 => self.ld_dt_vx(instruction.x),
@@ -225,15 +250,17 @@ impl CPU {
 mod test {
     use super::*;
     use crate::display::null::NullDisplay;
+    use crate::keyboard::null::NullKeyboard;
 
     #[test]
     fn add_vx() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
         let instruction = Instruction::new(0x7c05);
 
         cpu.v_registers[0xc] = 0x12;
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
         assert_eq!(cpu.v_registers[0xc], 0x17);
     }
 
@@ -241,11 +268,12 @@ mod test {
     fn add_i_vx() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
         let instruction = Instruction::new(0xfb1e);
 
         cpu.address_i = 0x7;
         cpu.v_registers[0xb] = 0x3;
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
         assert_eq!(cpu.address_i, 0xa);
     }
 
@@ -253,10 +281,11 @@ mod test {
     fn call() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
         let instruction = Instruction::new(0x2123);
 
         cpu.program_counter = 0xcbd;
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
 
         assert_eq!(cpu.program_counter, 0x123);
         assert_eq!(cpu.stack[cpu.stack_pointer as usize - 1], 0xcbf);
@@ -266,10 +295,11 @@ mod test {
     fn cls() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
         let instruction = Instruction::new(0x00e0);
 
         assert!(!display.cleared);
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
         assert!(display.cleared);
     }
 
@@ -277,9 +307,10 @@ mod test {
     fn jp() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
         let instruction = Instruction::new(0x1aba);
 
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
         assert_eq!(cpu.program_counter, 0xaba);
     }
 
@@ -287,10 +318,11 @@ mod test {
     fn ld_dt_vx() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
         let instruction = Instruction::new(0xf315);
 
         cpu.v_registers[0x3] = 0xbb;
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
         assert_eq!(cpu.delay_timer, 0xbb);
     }
 
@@ -298,10 +330,11 @@ mod test {
     fn ld_vx_dt() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
         let instruction = Instruction::new(0xf407);
 
         cpu.delay_timer = 0xf;
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
         assert_eq!(cpu.v_registers[0x4], cpu.delay_timer);
     }
 
@@ -309,22 +342,23 @@ mod test {
     fn ld_vx_vy() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
         let instruction = Instruction::new(0x8de0);
 
         cpu.v_registers[0xd] = 0xff;
         cpu.v_registers[0xe] = 0x12;
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
         assert_eq!(cpu.v_registers[0xd], 0x12);
-
     }
 
     #[test]
     fn ld_i() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
         let instruction = Instruction::new(0xa123);
 
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
         assert_eq!(cpu.address_i, 0x123);
     }
 
@@ -332,67 +366,100 @@ mod test {
     fn ld_vx() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
         let instruction = Instruction::new(0x6513);
 
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
         assert_eq!(cpu.v_registers[0x5], 0x13);
-    }
-
-    #[test]
-    fn se_vx() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let instruction = Instruction::new(0x3307);
-
-        cpu.program_counter = 0x5;
-        cpu.v_registers[0x3] = 0x8;
-
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
-        assert_eq!(cpu.program_counter, 0x7);
-
-        cpu.program_counter = 0x5;
-        let instruction = Instruction::new(0x3308);
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
-        assert_eq!(cpu.program_counter, 0x9);
-    }
-
-    #[test]
-    fn sne_vx() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let instruction = Instruction::new(0x4320);
-
-        cpu.program_counter = 0x5;
-        cpu.v_registers[0x3] = 0x21;
-
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
-        assert_eq!(cpu.program_counter, 0x9);
-
-        cpu.program_counter = 0x5;
-        let instruction = Instruction::new(0x4321);
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
-        assert_eq!(cpu.program_counter, 0x7);
     }
 
     #[test]
     fn ret() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
         let instruction = Instruction::new(0x2123);
 
         cpu.program_counter = 0xcbd;
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
 
         let instruction = Instruction::new(0x00ee);
-        cpu.execute_instruction(instruction, &mut [0], &mut display);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
 
         assert_eq!(cpu.program_counter, 0xcbf);
+    }
+
+    #[test]
+    fn se_vx() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
+        let instruction = Instruction::new(0x3307);
+
+        cpu.program_counter = 0x5;
+        cpu.v_registers[0x3] = 0x8;
+
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.program_counter, 0x7);
+
+        cpu.program_counter = 0x5;
+        let instruction = Instruction::new(0x3308);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.program_counter, 0x9);
+    }
+
+    #[test]
+    fn skp_vx() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
+        let instruction = Instruction::new(0xe39e);
+
+        cpu.program_counter = 0x2;
+        cpu.v_registers[0x3] = 0xa;
+        keyboard.set_key(0xa);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.program_counter, 0x6);
+    }
+
+    #[test]
+    fn sknp_vx() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
+        let instruction = Instruction::new(0xe2a1);
+
+        cpu.program_counter = 0x2;
+        cpu.v_registers[0x2] = 0xa;
+        keyboard.set_key(0xb);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.program_counter, 0x6);
+    }
+
+    #[test]
+    fn sne_vx() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
+        let instruction = Instruction::new(0x4320);
+
+        cpu.program_counter = 0x5;
+        cpu.v_registers[0x3] = 0x21;
+
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.program_counter, 0x9);
+
+        cpu.program_counter = 0x5;
+        let instruction = Instruction::new(0x4321);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.program_counter, 0x7);
     }
 
     #[test]
     fn drw() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
         let instruction = Instruction::new(0xd103);
         let mut memory: [u8; 4096] = [0; 4096];
 
@@ -403,7 +470,7 @@ mod test {
         let sprite_data: [u8; 3] = [0b00100, 0b01010, 0b10010];
         cpu.address_i = 0x500;
         memory[0x500..0x500 + sprite_data.len()].copy_from_slice(&sprite_data);
-        cpu.execute_instruction(instruction, &mut memory, &mut display);
+        cpu.execute_instruction(instruction, &mut memory, &mut display, &mut keyboard);
 
         // row 1
         assert_eq!(display.vram[0], 0);

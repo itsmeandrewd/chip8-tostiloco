@@ -28,7 +28,8 @@ impl Default for WebGLDisplay {
             &context_options,
             &"preserveDrawingBuffer".into(),
             &wasm_bindgen::JsValue::TRUE,
-        ).unwrap();
+        )
+        .unwrap();
         let canvas = document
             .query_selector("#glCanvas")
             .unwrap()
