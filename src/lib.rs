@@ -7,10 +7,10 @@ mod keyboard;
 use crate::chip8::CHIP8;
 use crate::cpu::CPU;
 use crate::display::Display;
+use crate::keyboard::Keyboard;
 use log::Level;
 use std::panic;
 use wasm_bindgen::prelude::*;
-use crate::keyboard::Keyboard;
 
 #[wasm_bindgen]
 extern "C" {

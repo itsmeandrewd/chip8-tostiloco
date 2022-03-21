@@ -65,6 +65,22 @@ impl CPU {
         self.address_i += self.v_registers[x] as u16;
     }
 
+    pub fn add_vx_vy(&mut self, x: usize, y: usize) {
+        debug!("ADD V{}, V{}", x, y);
+        let buffer = self.v_registers[x] as u16 + self.v_registers[y] as u16;
+        if buffer > 0xff {
+            self.v_registers[0xf] = 0x1;
+        } else {
+            self.v_registers[0xf] = 0x0;
+        }
+        self.v_registers[x] = *buffer.to_be_bytes().last().unwrap();
+    }
+
+    pub fn and_vx_vy(&mut self, x: usize, y: usize) {
+        debug!("AND V{}, V{}", x, y);
+        self.v_registers[x] = self.v_registers[x] & self.v_registers[y];
+    }
+
     pub fn call(&mut self, addr: u16) {
         debug!("CALL {:#02x}", addr);
         self.stack[self.stack_pointer as usize] = self.program_counter + 2;
@@ -102,6 +118,13 @@ impl CPU {
         self.v_registers[x] = self.delay_timer;
     }
 
+    pub fn ld_vx_i(&mut self, x: usize, memory: &[u8]) {
+        debug!("LD V{}, I", x);
+        for n in 0..=x {
+            self.v_registers[n] = memory[self.address_i as usize + n]
+        }
+    }
+
     pub fn ld_vx_vy(&mut self, x: usize, y: usize) {
         debug!("LD V{}, V{}", x, y);
         self.v_registers[x] = self.v_registers[y];
@@ -126,6 +149,16 @@ impl CPU {
         }
     }
 
+    pub fn shr_vx_vy(&mut self, x: usize, y: usize) {
+        debug!("SHR V{}, V{}", x, y);
+        if self.v_registers[x] & 0x1 == 0x1 {
+            self.v_registers[0xf] = 0x1;
+        } else {
+            self.v_registers[0xf] = 0x0;
+        }
+        self.v_registers[x] = self.v_registers[x] >> 1;
+    }
+
     pub fn skp_vx(&mut self, x: usize, keyboard: &mut dyn Keyboard) {
         debug!("SKP V{}", x);
         if keyboard.get_key() == self.v_registers[x] {
@@ -145,6 +178,21 @@ impl CPU {
         if self.v_registers[vx] != byte {
             self.program_counter += 2;
         }
+    }
+
+    pub fn sub_vx_vy(&mut self, x: usize, y: usize) {
+        debug!("SUB V{}, V{}", x, y);
+        if self.v_registers[x] > self.v_registers[y] {
+            self.v_registers[0xf] = 0x1;
+        } else {
+            self.v_registers[0xf] = 0x0;
+        }
+        self.v_registers[x] = self.v_registers[x].wrapping_sub(self.v_registers[y]);
+    }
+
+    pub fn xor_vx_vy(&mut self, x: usize, y: usize) {
+        debug!("XOR V{}, V{}", x, y);
+        self.v_registers[x] ^= self.v_registers[y];
     }
 
     pub fn drw(
@@ -207,6 +255,11 @@ impl CPU {
             0x7 => self.add_vx(instruction.x, instruction.kk),
             0x8 => match instruction.n {
                 0x0 => self.ld_vx_vy(instruction.x, instruction.y),
+                0x2 => self.and_vx_vy(instruction.x, instruction.y),
+                0x3 => self.xor_vx_vy(instruction.x, instruction.y),
+                0x4 => self.add_vx_vy(instruction.x, instruction.y),
+                0x5 => self.sub_vx_vy(instruction.x, instruction.y),
+                0x6 => self.shr_vx_vy(instruction.x, instruction.y),
                 _ => self.unknown_instruction(&instruction),
             },
             0xa => self.ld_i(instruction.nnn),
@@ -227,6 +280,7 @@ impl CPU {
                 0x07 => self.ld_vx_dt(instruction.x),
                 0x15 => self.ld_dt_vx(instruction.x),
                 0x1e => self.add_i_vx(instruction.x),
+                0x65 => self.ld_vx_i(instruction.x, memory),
                 _ => self.unknown_instruction(&instruction),
             },
             _ => self.unknown_instruction(&instruction),
@@ -275,6 +329,40 @@ mod test {
         cpu.v_registers[0xb] = 0x3;
         cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
         assert_eq!(cpu.address_i, 0xa);
+    }
+
+    #[test]
+    fn add_vx_vy() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
+        let instruction = Instruction::new(0x8ba4);
+
+        cpu.v_registers[0xb] = 0x2;
+        cpu.v_registers[0xa] = 0x2;
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.v_registers[0xf], 0x0);
+        assert_eq!(cpu.v_registers[0xb], 0x4);
+
+        let instruction = Instruction::new(0x8ba4);
+        cpu.v_registers[0xb] = 0xff;
+        cpu.v_registers[0xa] = 0x2;
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.v_registers[0xf], 0x1);
+        assert_eq!(cpu.v_registers[0xb], 0x1);
+    }
+
+    #[test]
+    fn and_vx_vy() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
+        let instruction = Instruction::new(0x8012);
+
+        cpu.v_registers[0] = 0x3;
+        cpu.v_registers[1] = 0xe;
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.v_registers[0], 0x2);
     }
 
     #[test]
@@ -336,6 +424,22 @@ mod test {
         cpu.delay_timer = 0xf;
         cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
         assert_eq!(cpu.v_registers[0x4], cpu.delay_timer);
+    }
+
+    #[test]
+    fn ld_vx_i() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
+        let instruction = Instruction::new(0xf365);
+        let mut memory = [0x0, 0xf, 0xe, 0xd, 0xc, 0xb];
+        cpu.address_i = 0x1;
+
+        cpu.execute_instruction(instruction, &mut memory, &mut display, &mut keyboard);
+        assert_eq!(cpu.v_registers[0], 0xf);
+        assert_eq!(cpu.v_registers[1], 0xe);
+        assert_eq!(cpu.v_registers[2], 0xd);
+        assert_eq!(cpu.v_registers[3], 0xc);
     }
 
     #[test]
@@ -409,6 +513,25 @@ mod test {
     }
 
     #[test]
+    fn shr_vx_vy() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
+        let instruction = Instruction::new(0x8106);
+
+        cpu.v_registers[0x1] = 0b10111010; // 186
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.v_registers[0xf], 0x0);
+        assert_eq!(cpu.v_registers[0x1], 0b1011101);
+
+        let instruction = Instruction::new(0x8106);
+        cpu.v_registers[0x1] = 0b11111011; // 251
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.v_registers[0xf], 0x1);
+        assert_eq!(cpu.v_registers[0x1], 0b1111101);
+    }
+
+    #[test]
     fn skp_vx() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
@@ -453,6 +576,40 @@ mod test {
         let instruction = Instruction::new(0x4321);
         cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
         assert_eq!(cpu.program_counter, 0x7);
+    }
+
+    #[test]
+    fn sub_vx_vy() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
+        let instruction = Instruction::new(0x83b5);
+
+        cpu.v_registers[0x3] = 0x9;
+        cpu.v_registers[0xb] = 0x4;
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.v_registers[0xf], 0x1);
+        assert_eq!(cpu.v_registers[0x3], 0x5);
+
+        let instruction = Instruction::new(0x83b5);
+        cpu.v_registers[0x3] = 0x9;
+        cpu.v_registers[0xb] = 0xf;
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.v_registers[0xf], 0x0);
+        assert_eq!(cpu.v_registers[0x3], 0xfa);
+    }
+
+    #[test]
+    fn xor_vx_vy() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
+        let instruction = Instruction::new(0x8e23);
+
+        cpu.v_registers[0xe] = 0xff;
+        cpu.v_registers[0x2] = 0x10;
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.v_registers[0xe], 0xef);
     }
 
     #[test]

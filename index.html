@@ -69,7 +69,7 @@
                             let run_type = parseInt(document.querySelector('#run_type').value);
                             load_rom(byteArray);
                             if (run_type === 0) {
-                                let cpu_speed = 60.0;
+                                let cpu_speed = 400.0;
                                 let clock_speed = 60.0;
                                 let cpuIntervalID = setInterval(() => {
                                     tick()

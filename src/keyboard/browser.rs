@@ -1,7 +1,4 @@
-use log::debug;
 use crate::keyboard::Keyboard;
-use wasm_bindgen::closure::Closure;
-use wasm_bindgen::JsCast;
 
 #[derive(Default)]
 pub struct BrowserKeyboard {
