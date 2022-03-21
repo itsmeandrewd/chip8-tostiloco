@@ -60,9 +60,9 @@
             function loadRomFileHandler() {
                 let romFileInput = document.querySelector('#romFile');
                 romFileInput.addEventListener('change', () => {
-                    haltIntervalTimers();
 
                     if (romFileInput.files.length > 0) {
+                        haltIntervalTimers();
                         let reader = new FileReader();
                         reader.onloadend = () => {
                             let byteArray = new Uint8Array(reader.result);
@@ -72,11 +72,12 @@
                                 let cpu_speed = 400.0;
                                 let clock_speed = 60.0;
                                 let cpuIntervalID = setInterval(() => {
-                                    tick()
+                                    tick();
                                 }, 1000.0 / cpu_speed);
 
                                 let timerIntervalID = setInterval(() => {
-                                    handle_timers()
+                                    handle_timers();
+                                    tick();
                                 }, 1000.0 / clock_speed);
 
                                 intervalIDs.push(cpuIntervalID);

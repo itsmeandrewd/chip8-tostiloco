@@ -98,14 +98,30 @@ impl CPU {
         self.program_counter = addr;
     }
 
+    pub fn ld_bcd_vx(&mut self, x: usize, memory: &mut [u8]) {
+        debug!("LD BCD, V{}", x);
+        memory[self.address_i as usize] = self.v_registers[x] / 100;
+        memory[self.address_i as usize + 1] = self.v_registers[x] % 100 / 10;
+        memory[self.address_i as usize + 2] = self.v_registers[x]  % 10;
+    }
+
     pub fn ld_dt_vx(&mut self, x: usize) {
         debug!("LD DT, V{}", x);
         self.delay_timer = self.v_registers[x];
     }
 
+    pub fn ld_f_vx(&mut self, x: usize) {
+        debug!("LD F, V{}", x);
+    }
+
     pub fn ld_i(&mut self, addr: u16) {
         debug!("LD I, {:#02x}", addr);
         self.address_i = addr;
+    }
+
+    pub fn ld_st_vx(&mut self, x: usize) {
+        debug!("LD ST, V{}", x);
+        self.sound_timer = self.v_registers[x];
     }
 
     pub fn ld_vx(&mut self, x: usize, byte: u8) {
@@ -122,6 +138,17 @@ impl CPU {
         debug!("LD V{}, I", x);
         for n in 0..=x {
             self.v_registers[n] = memory[self.address_i as usize + n]
+        }
+    }
+
+    pub fn ld_vx_k(&mut self, x: usize, keyboard: &mut dyn Keyboard) {
+        debug!("LD V{}, K", x);
+        let key_down = keyboard.get_key();
+
+        if key_down == 0 {
+            self.program_counter -= 2;
+        } else {
+            self.v_registers[x] = key_down;
         }
     }
 
@@ -278,8 +305,11 @@ impl CPU {
             },
             0xf => match instruction.kk {
                 0x07 => self.ld_vx_dt(instruction.x),
+                0x0a => self.ld_vx_k(instruction.x, keyboard),
                 0x15 => self.ld_dt_vx(instruction.x),
+                0x18 => self.ld_st_vx(instruction.x),
                 0x1e => self.add_i_vx(instruction.x),
+                0x33 => self.ld_bcd_vx(instruction.x, memory),
                 0x65 => self.ld_vx_i(instruction.x, memory),
                 _ => self.unknown_instruction(&instruction),
             },
@@ -403,6 +433,22 @@ mod test {
     }
 
     #[test]
+    fn ld_bcd_vx() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let mut memory = [0u8; 7];
+        let mut keyboard = NullKeyboard::default();
+        let instruction = Instruction::new(0xfe33);
+
+        cpu.v_registers[0xe] = 123;
+        cpu.address_i = 3;
+        cpu.execute_instruction(instruction, &mut memory, &mut display, &mut keyboard);
+        assert_eq!(memory[3], 1);
+        assert_eq!(memory[4], 2);
+        assert_eq!(memory[5], 3);
+    }
+
+    #[test]
     fn ld_dt_vx() {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
@@ -412,6 +458,18 @@ mod test {
         cpu.v_registers[0x3] = 0xbb;
         cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
         assert_eq!(cpu.delay_timer, 0xbb);
+    }
+
+    #[test]
+    fn ld_st_vx() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
+        let instruction = Instruction::new(0xfa18);
+
+        cpu.v_registers[0xa] = 0x7;
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.sound_timer, 0x7);
     }
 
     #[test]
@@ -440,6 +498,26 @@ mod test {
         assert_eq!(cpu.v_registers[1], 0xe);
         assert_eq!(cpu.v_registers[2], 0xd);
         assert_eq!(cpu.v_registers[3], 0xc);
+    }
+
+    #[test]
+    fn ld_vx_k() {
+        let mut cpu = CPU::default();
+        let mut display = NullDisplay::default();
+        let mut keyboard = NullKeyboard::default();
+        let instruction = Instruction::new(0xf10a);
+
+        cpu.program_counter = 0x2;
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.program_counter, 0x2);
+        assert_eq!(cpu.v_registers[0x1], 0x0);
+
+        keyboard.set_key(0xd);
+        let instruction = Instruction::new(0xf10a);
+        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        assert_eq!(cpu.program_counter, 0x4);
+        assert_eq!(cpu.v_registers[0x1], 0xd);
+
     }
 
     #[test]
