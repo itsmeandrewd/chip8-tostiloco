@@ -18,7 +18,7 @@
             <button type="button" id="tick" style="display: none;">Tick</button>
             <br><br>
         </form>
-        <canvas id="glCanvas" width="640" height="320"></canvas>
+        <canvas id="glCanvas" width="1280" height="640"></canvas>
         <script type="module">
             import init, {boot_emulator, load_rom, tick, handle_timers, key_down, key_up} from "./pkg/moldy_chip.js";
 
@@ -77,7 +77,6 @@
 
                                 let timerIntervalID = setInterval(() => {
                                     handle_timers();
-                                    tick();
                                 }, 1000.0 / clock_speed);
 
                                 intervalIDs.push(cpuIntervalID);

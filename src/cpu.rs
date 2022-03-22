@@ -102,7 +102,7 @@ impl CPU {
         debug!("LD BCD, V{}", x);
         memory[self.address_i as usize] = self.v_registers[x] / 100;
         memory[self.address_i as usize + 1] = self.v_registers[x] % 100 / 10;
-        memory[self.address_i as usize + 2] = self.v_registers[x]  % 10;
+        memory[self.address_i as usize + 2] = self.v_registers[x] % 10;
     }
 
     pub fn ld_dt_vx(&mut self, x: usize) {
@@ -222,41 +222,29 @@ impl CPU {
         self.v_registers[x] ^= self.v_registers[y];
     }
 
-    pub fn drw(
-        &mut self,
-        vx: usize,
-        vy: usize,
-        n: usize,
-        memory: &[u8],
-        display: &mut dyn Display,
-    ) {
-        debug!("DRW V{}, V{}, {:#01x}", vx, vy, n);
-        let mut x_coord = (self.v_registers[vx] % 64) as usize;
-        let mut y_coord = (self.v_registers[vy] % 32) as usize;
-        self.v_registers[0xf] = 0;
+    pub fn drw(&mut self, x: usize, y: usize, n: usize, memory: &[u8], display: &mut dyn Display) {
+        debug!("DRW V{}, V{}, {:#01x}", x, y, n);
+        self.v_registers[0xf] = 0x0;
 
-        let pixel_size = 10.0;
+        let pixel_size = 20.0;
         for row in 0..n {
-            let sprite_data = memory[(self.address_i as usize) + row];
-            for bit in 0..8 {
-                let sprite_pixel = (sprite_data & (1 << bit)) != 0;
-                if sprite_pixel && display.get_pixel(x_coord, y_coord) {
-                    display.draw_pixel(x_coord, y_coord, pixel_size, false);
-                    self.v_registers[0xf] = 1;
-                } else if sprite_pixel {
-                    display.draw_pixel(x_coord, y_coord, pixel_size, true);
+            let pixel = memory[self.address_i as usize + row];
+            for col in 0..8 {
+                if (pixel & (0x80 >> col)) != 0 {
+                    let cur_pixel = display.get_pixel(
+                        (self.v_registers[x] + col) as usize,
+                        (self.v_registers[y] + row as u8) as usize,
+                    );
+                    if cur_pixel {
+                        self.v_registers[0xf] = 0x1;
+                    }
+                    display.draw_pixel(
+                        (self.v_registers[x] + col) as usize,
+                        (self.v_registers[y] + row as u8) as usize,
+                        pixel_size,
+                        (cur_pixel as u8 ^ 1) == 1,
+                    );
                 }
-
-                x_coord -= 1;
-                if x_coord >= display.get_width() {
-                    break;
-                }
-            }
-            y_coord += 1;
-            //x_coord = 0;
-            x_coord = (self.v_registers[vx] % 64) as usize;
-            if y_coord >= display.get_height() {
-                break;
             }
         }
     }
@@ -517,7 +505,6 @@ mod test {
         cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
         assert_eq!(cpu.program_counter, 0x4);
         assert_eq!(cpu.v_registers[0x1], 0xd);
-
     }
 
     #[test]
@@ -695,24 +682,41 @@ mod test {
         let mut cpu = CPU::default();
         let mut display = NullDisplay::default();
         let mut keyboard = NullKeyboard::default();
-        let instruction = Instruction::new(0xd103);
+        let instruction = Instruction::new(0xdb03);
         let mut memory: [u8; 4096] = [0; 4096];
 
         // drawing the following 'tree' sprite offset 1 pixel from left
         // ...*..
         // ..*.*.
         // .*..*.
-        let sprite_data: [u8; 3] = [0b00100, 0b01010, 0b10010];
+        let sprite_data: [u8; 3] = [0b00100000, 0b01010000, 0b10010000];
         cpu.address_i = 0x500;
+        cpu.v_registers[0xb] = 0x1;
         memory[0x500..0x500 + sprite_data.len()].copy_from_slice(&sprite_data);
         cpu.execute_instruction(instruction, &mut memory, &mut display, &mut keyboard);
 
         // row 1
-        assert_eq!(display.vram[0], 0);
-        assert_eq!(display.vram[1], 0);
-        assert_eq!(display.vram[2], 0);
-        assert_eq!(display.vram[3], 1);
-        assert_eq!(display.vram[4], 0);
-        assert_eq!(display.vram[5], 0);
+        assert!(!display.get_pixel(0, 0));
+        assert!(!display.get_pixel(1, 0));
+        assert!(!display.get_pixel(2, 0));
+        assert!(display.get_pixel(3, 0));
+        assert!(!display.get_pixel(4, 0));
+        assert!(!display.get_pixel(5, 0));
+
+        // row 2
+        assert!(!display.get_pixel(0, 1));
+        assert!(!display.get_pixel(1, 1));
+        assert!(display.get_pixel(2, 1));
+        assert!(!display.get_pixel(3, 1));
+        assert!(display.get_pixel(4, 1));
+        assert!(!display.get_pixel(5, 1));
+
+        // row 3
+        assert!(!display.get_pixel(0, 2));
+        assert!(display.get_pixel(1, 2));
+        assert!(!display.get_pixel(2, 2));
+        assert!(!display.get_pixel(3, 2));
+        assert!(display.get_pixel(4, 2));
+        assert!(!display.get_pixel(5, 2));
     }
 }
