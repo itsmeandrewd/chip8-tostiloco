@@ -231,19 +231,14 @@ impl CPU {
             let pixel = memory[self.address_i as usize + row];
             for col in 0..8 {
                 if (pixel & (0x80 >> col)) != 0 {
-                    let cur_pixel = display.get_pixel(
-                        (self.v_registers[x] + col) as usize,
-                        (self.v_registers[y] + row as u8) as usize,
-                    );
+                    let x_coord = (self.v_registers[x] + col) as usize;
+                    let y_coord = (self.v_registers[y] + row as u8) as usize;
+
+                    let cur_pixel = display.get_pixel(x_coord, y_coord);
                     if cur_pixel {
                         self.v_registers[0xf] = 0x1;
                     }
-                    display.draw_pixel(
-                        (self.v_registers[x] + col) as usize,
-                        (self.v_registers[y] + row as u8) as usize,
-                        pixel_size,
-                        (cur_pixel as u8 ^ 1) == 1,
-                    );
+                    display.draw_pixel(x_coord, y_coord, pixel_size, cur_pixel ^ true);
                 }
             }
         }
