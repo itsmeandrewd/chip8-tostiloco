@@ -4,7 +4,7 @@ mod display;
 mod instruction;
 mod keyboard;
 
-use crate::chip8::CHIP8;
+use crate::chip8::{Chip8, Chip8Platform};
 use crate::cpu::CPU;
 use crate::display::Display;
 use crate::keyboard::Keyboard;
@@ -17,7 +17,7 @@ extern "C" {
     pub fn alert(s: &str);
 }
 
-static mut EMULATOR: Option<CHIP8> = None;
+static mut EMULATOR: Option<Chip8> = None;
 
 pub fn init_logging() {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
@@ -28,9 +28,9 @@ pub fn init_logging() {
 pub fn boot_emulator() {
     init_logging();
     unsafe {
-        let mut emulator = CHIP8::default();
-        emulator.display.initialize();
-        emulator.keyboard.initialize();
+        let mut emulator = Chip8::new(Chip8Platform::BROWSER);
+        emulator.bus.display.initialize();
+        emulator.bus.keyboard.initialize();
         EMULATOR = Some(emulator);
     }
 }
@@ -38,23 +38,23 @@ pub fn boot_emulator() {
 #[wasm_bindgen]
 pub fn key_down(key_code: u8) {
     unsafe {
-        let emulator: &mut CHIP8 = EMULATOR.as_mut().unwrap();
-        emulator.keyboard.set_key(key_code);
+        let emulator: &mut Chip8 = EMULATOR.as_mut().unwrap();
+        emulator.bus.keyboard.set_key(key_code);
     }
 }
 
 #[wasm_bindgen]
 pub fn key_up() {
     unsafe {
-        let emulator: &mut CHIP8 = EMULATOR.as_mut().unwrap();
-        emulator.keyboard.set_key(0);
+        let emulator: &mut Chip8 = EMULATOR.as_mut().unwrap();
+        emulator.bus.keyboard.set_key(0);
     }
 }
 
 #[wasm_bindgen]
 pub fn tick() {
     unsafe {
-        let emulator: &mut CHIP8 = EMULATOR.as_mut().unwrap();
+        let emulator: &mut Chip8 = EMULATOR.as_mut().unwrap();
         emulator.fetch_and_execute_instruction();
     }
 }

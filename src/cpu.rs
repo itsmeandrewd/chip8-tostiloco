@@ -1,3 +1,4 @@
+use crate::chip8::Chip8Bus;
 use crate::display::Display;
 use crate::instruction::Instruction;
 use crate::keyboard::Keyboard;
@@ -33,7 +34,7 @@ impl Default for CPU {
 }
 
 impl CPU {
-    pub fn reset(&mut self, display: &mut dyn Display) {
+    pub fn reset(&mut self, display: &mut Box<dyn Display>) {
         self.address_i = 0;
         self.program_counter = 0x200;
         self.stack_pointer = 0;
@@ -88,7 +89,7 @@ impl CPU {
         self.program_counter = addr;
     }
 
-    pub fn cls(&mut self, display: &mut dyn Display) {
+    pub fn cls(&mut self, display: &mut Box<dyn Display>) {
         debug!("CLS");
         display.clear();
     }
@@ -108,10 +109,6 @@ impl CPU {
     pub fn ld_dt_vx(&mut self, x: usize) {
         debug!("LD DT, V{}", x);
         self.delay_timer = self.v_registers[x];
-    }
-
-    pub fn ld_f_vx(&mut self, x: usize) {
-        debug!("LD F, V{}", x);
     }
 
     pub fn ld_i(&mut self, addr: u16) {
@@ -141,7 +138,7 @@ impl CPU {
         }
     }
 
-    pub fn ld_vx_k(&mut self, x: usize, keyboard: &mut dyn Keyboard) {
+    pub fn ld_vx_k(&mut self, x: usize, keyboard: &mut Box<dyn Keyboard>) {
         debug!("LD V{}, K", x);
         let key_down = keyboard.get_key();
 
@@ -186,14 +183,14 @@ impl CPU {
         self.v_registers[x] = self.v_registers[x] >> 1;
     }
 
-    pub fn skp_vx(&mut self, x: usize, keyboard: &mut dyn Keyboard) {
+    pub fn skp_vx(&mut self, x: usize, keyboard: &mut Box<dyn Keyboard>) {
         debug!("SKP V{}", x);
         if keyboard.get_key() == self.v_registers[x] {
             self.program_counter += 2;
         }
     }
 
-    pub fn sknp_vx(&mut self, x: usize, keyboard: &mut dyn Keyboard) {
+    pub fn sknp_vx(&mut self, x: usize, keyboard: &mut Box<dyn Keyboard>) {
         debug!("SKNP V{}", x);
         if keyboard.get_key() != self.v_registers[x] {
             self.program_counter += 2;
@@ -222,7 +219,7 @@ impl CPU {
         self.v_registers[x] ^= self.v_registers[y];
     }
 
-    pub fn drw(&mut self, x: usize, y: usize, n: usize, memory: &[u8], display: &mut dyn Display) {
+    pub fn drw(&mut self, x: usize, y: usize, n: usize, memory: &[u8], display: &mut Box<dyn Display>) {
         debug!("DRW V{}, V{}, {:#01x}", x, y, n);
         self.v_registers[0xf] = 0x0;
 
@@ -244,16 +241,10 @@ impl CPU {
         }
     }
 
-    pub fn execute_instruction(
-        &mut self,
-        instruction: Instruction,
-        memory: &mut [u8],
-        display: &mut dyn Display,
-        keyboard: &mut dyn Keyboard,
-    ) {
+    pub fn execute_instruction(&mut self, instruction: Instruction, bus: &mut Chip8Bus) {
         match instruction.first {
             0x0 => match instruction.kk {
-                0xe0 => self.cls(display),
+                0xe0 => self.cls(&mut bus.display),
                 0xee => self.ret(),
                 _ => self.unknown_instruction(&instruction),
             },
@@ -278,22 +269,22 @@ impl CPU {
                 instruction.x,
                 instruction.y,
                 instruction.n as usize,
-                memory,
-                display,
+                &mut bus.memory,
+                &mut bus.display,
             ),
             0xe => match instruction.kk {
-                0x9e => self.skp_vx(instruction.x, keyboard),
-                0xa1 => self.sknp_vx(instruction.x, keyboard),
+                0x9e => self.skp_vx(instruction.x, &mut bus.keyboard),
+                0xa1 => self.sknp_vx(instruction.x, &mut bus.keyboard),
                 _ => self.unknown_instruction(&instruction),
             },
             0xf => match instruction.kk {
                 0x07 => self.ld_vx_dt(instruction.x),
-                0x0a => self.ld_vx_k(instruction.x, keyboard),
+                0x0a => self.ld_vx_k(instruction.x, &mut bus.keyboard),
                 0x15 => self.ld_dt_vx(instruction.x),
                 0x18 => self.ld_st_vx(instruction.x),
                 0x1e => self.add_i_vx(instruction.x),
-                0x33 => self.ld_bcd_vx(instruction.x, memory),
-                0x65 => self.ld_vx_i(instruction.x, memory),
+                0x33 => self.ld_bcd_vx(instruction.x, &mut bus.memory),
+                0x65 => self.ld_vx_i(instruction.x, &mut bus.memory),
                 _ => self.unknown_instruction(&instruction),
             },
             _ => self.unknown_instruction(&instruction),
@@ -316,402 +307,363 @@ impl CPU {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::display::null::NullDisplay;
-    use crate::keyboard::null::NullKeyboard;
+    use crate::Chip8;
+    use crate::Chip8Platform::MOCK;
 
     #[test]
     fn add_vx() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x7c05);
 
-        cpu.v_registers[0xc] = 0x12;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.v_registers[0xc], 0x17);
+        chip8.cpu.v_registers[0xc] = 0x12;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0xc], 0x17);
     }
 
     #[test]
     fn add_i_vx() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0xfb1e);
 
-        cpu.address_i = 0x7;
-        cpu.v_registers[0xb] = 0x3;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.address_i, 0xa);
+        chip8.cpu.address_i = 0x7;
+        chip8.cpu.v_registers[0xb] = 0x3;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.address_i, 0xa);
     }
 
     #[test]
     fn add_vx_vy() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x8ba4);
 
-        cpu.v_registers[0xb] = 0x2;
-        cpu.v_registers[0xa] = 0x2;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.v_registers[0xf], 0x0);
-        assert_eq!(cpu.v_registers[0xb], 0x4);
+        chip8.cpu.v_registers[0xb] = 0x2;
+        chip8.cpu.v_registers[0xa] = 0x2;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0xf], 0x0);
+        assert_eq!(chip8.cpu.v_registers[0xb], 0x4);
 
         let instruction = Instruction::new(0x8ba4);
-        cpu.v_registers[0xb] = 0xff;
-        cpu.v_registers[0xa] = 0x2;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.v_registers[0xf], 0x1);
-        assert_eq!(cpu.v_registers[0xb], 0x1);
+        chip8.cpu.v_registers[0xb] = 0xff;
+        chip8.cpu.v_registers[0xa] = 0x2;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0xf], 0x1);
+        assert_eq!(chip8.cpu.v_registers[0xb], 0x1);
     }
 
     #[test]
     fn and_vx_vy() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x8012);
 
-        cpu.v_registers[0] = 0x3;
-        cpu.v_registers[1] = 0xe;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.v_registers[0], 0x2);
+        chip8.cpu.v_registers[0] = 0x3;
+        chip8.cpu.v_registers[1] = 0xe;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0], 0x2);
     }
 
     #[test]
     fn call() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x2123);
 
-        cpu.program_counter = 0xcbd;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        chip8.cpu.program_counter = 0xcbd;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
 
-        assert_eq!(cpu.program_counter, 0x123);
-        assert_eq!(cpu.stack[cpu.stack_pointer as usize - 1], 0xcbf);
+        assert_eq!(chip8.cpu.program_counter, 0x123);
+        assert_eq!(chip8.cpu.stack[chip8.cpu.stack_pointer as usize - 1], 0xcbf);
     }
 
     #[test]
     fn cls() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x00e0);
 
-        assert!(!display.cleared);
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert!(display.cleared);
+        chip8.bus.display.draw_pixel(1,0, 1.0, true);
+        chip8.bus.display.draw_pixel(1,3, 1.0, true);
+        chip8.bus.display.draw_pixel(4,1, 1.0, true);
+        assert!(chip8.bus.display.get_pixel(1, 0));
+        assert!(chip8.bus.display.get_pixel(1, 3));
+        assert!(chip8.bus.display.get_pixel(4, 1));
+
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert!(!chip8.bus.display.get_pixel(1, 0));
+        assert!(!chip8.bus.display.get_pixel(1, 3));
+        assert!(!chip8.bus.display.get_pixel(4, 1));
     }
 
     #[test]
     fn jp() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x1aba);
 
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.program_counter, 0xaba);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.program_counter, 0xaba);
     }
 
     #[test]
     fn ld_bcd_vx() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut memory = [0u8; 7];
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0xfe33);
 
-        cpu.v_registers[0xe] = 123;
-        cpu.address_i = 3;
-        cpu.execute_instruction(instruction, &mut memory, &mut display, &mut keyboard);
-        assert_eq!(memory[3], 1);
-        assert_eq!(memory[4], 2);
-        assert_eq!(memory[5], 3);
+        chip8.cpu.v_registers[0xe] = 123;
+        chip8.cpu.address_i = 3;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.bus.memory[3], 1);
+        assert_eq!(chip8.bus.memory[4], 2);
+        assert_eq!(chip8.bus.memory[5], 3);
     }
 
     #[test]
     fn ld_dt_vx() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0xf315);
 
-        cpu.v_registers[0x3] = 0xbb;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.delay_timer, 0xbb);
+        chip8.cpu.v_registers[0x3] = 0xbb;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.delay_timer, 0xbb);
     }
 
     #[test]
     fn ld_st_vx() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0xfa18);
 
-        cpu.v_registers[0xa] = 0x7;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.sound_timer, 0x7);
+        chip8.cpu.v_registers[0xa] = 0x7;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.sound_timer, 0x7);
     }
 
     #[test]
     fn ld_vx_dt() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0xf407);
 
-        cpu.delay_timer = 0xf;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.v_registers[0x4], cpu.delay_timer);
+        chip8.cpu.delay_timer = 0xf;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0x4], chip8.cpu.delay_timer);
     }
 
     #[test]
     fn ld_vx_i() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0xf365);
-        let mut memory = [0x0, 0xf, 0xe, 0xd, 0xc, 0xb];
-        cpu.address_i = 0x1;
+        chip8.bus.memory[0] = 0x0;
+        chip8.bus.memory[1] = 0xf;
+        chip8.bus.memory[2] = 0xe;
+        chip8.bus.memory[3] = 0xd;
+        chip8.bus.memory[4] = 0xc;
+        chip8.bus.memory[5] = 0xb;
+        chip8.cpu.address_i = 0x1;
 
-        cpu.execute_instruction(instruction, &mut memory, &mut display, &mut keyboard);
-        assert_eq!(cpu.v_registers[0], 0xf);
-        assert_eq!(cpu.v_registers[1], 0xe);
-        assert_eq!(cpu.v_registers[2], 0xd);
-        assert_eq!(cpu.v_registers[3], 0xc);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0], 0xf);
+        assert_eq!(chip8.cpu.v_registers[1], 0xe);
+        assert_eq!(chip8.cpu.v_registers[2], 0xd);
+        assert_eq!(chip8.cpu.v_registers[3], 0xc);
     }
 
     #[test]
     fn ld_vx_k() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0xf10a);
 
-        cpu.program_counter = 0x2;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.program_counter, 0x2);
-        assert_eq!(cpu.v_registers[0x1], 0x0);
+        chip8.cpu.program_counter = 0x2;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.program_counter, 0x2);
+        assert_eq!(chip8.cpu.v_registers[0x1], 0x0);
 
-        keyboard.set_key(0xd);
+        chip8.bus.keyboard.set_key(0xd);
         let instruction = Instruction::new(0xf10a);
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.program_counter, 0x4);
-        assert_eq!(cpu.v_registers[0x1], 0xd);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.program_counter, 0x4);
+        assert_eq!(chip8.cpu.v_registers[0x1], 0xd);
     }
 
     #[test]
     fn ld_vx_vy() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x8de0);
 
-        cpu.v_registers[0xd] = 0xff;
-        cpu.v_registers[0xe] = 0x12;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.v_registers[0xd], 0x12);
+        chip8.cpu.v_registers[0xd] = 0xff;
+        chip8.cpu.v_registers[0xe] = 0x12;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0xd], 0x12);
     }
 
     #[test]
     fn ld_i() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0xa123);
 
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.address_i, 0x123);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.address_i, 0x123);
     }
 
     #[test]
     fn ld_vx() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x6513);
 
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.v_registers[0x5], 0x13);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0x5], 0x13);
     }
 
     #[test]
     fn ret() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x2123);
 
-        cpu.program_counter = 0xcbd;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        chip8.cpu.program_counter = 0xcbd;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
 
         let instruction = Instruction::new(0x00ee);
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
 
-        assert_eq!(cpu.program_counter, 0xcbf);
+        assert_eq!(chip8.cpu.program_counter, 0xcbf);
     }
 
     #[test]
     fn se_vx() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x3307);
 
-        cpu.program_counter = 0x5;
-        cpu.v_registers[0x3] = 0x8;
+        chip8.cpu.program_counter = 0x5;
+        chip8.cpu.v_registers[0x3] = 0x8;
 
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.program_counter, 0x7);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.program_counter, 0x7);
 
-        cpu.program_counter = 0x5;
+        chip8.cpu.program_counter = 0x5;
         let instruction = Instruction::new(0x3308);
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.program_counter, 0x9);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.program_counter, 0x9);
     }
 
     #[test]
     fn shr_vx_vy() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x8106);
 
-        cpu.v_registers[0x1] = 0b10111010; // 186
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.v_registers[0xf], 0x0);
-        assert_eq!(cpu.v_registers[0x1], 0b1011101);
+        chip8.cpu.v_registers[0x1] = 0b10111010; // 186
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0xf], 0x0);
+        assert_eq!(chip8.cpu.v_registers[0x1], 0b1011101);
 
         let instruction = Instruction::new(0x8106);
-        cpu.v_registers[0x1] = 0b11111011; // 251
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.v_registers[0xf], 0x1);
-        assert_eq!(cpu.v_registers[0x1], 0b1111101);
+        chip8.cpu.v_registers[0x1] = 0b11111011; // 251
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0xf], 0x1);
+        assert_eq!(chip8.cpu.v_registers[0x1], 0b1111101);
     }
 
     #[test]
     fn skp_vx() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0xe39e);
 
-        cpu.program_counter = 0x2;
-        cpu.v_registers[0x3] = 0xa;
-        keyboard.set_key(0xa);
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.program_counter, 0x6);
+        chip8.cpu.program_counter = 0x2;
+        chip8.cpu.v_registers[0x3] = 0xa;
+        chip8.bus.keyboard.set_key(0xa);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.program_counter, 0x6);
     }
 
     #[test]
     fn sknp_vx() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0xe2a1);
 
-        cpu.program_counter = 0x2;
-        cpu.v_registers[0x2] = 0xa;
-        keyboard.set_key(0xb);
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.program_counter, 0x6);
+        chip8.cpu.program_counter = 0x2;
+        chip8.cpu.v_registers[0x2] = 0xa;
+        chip8.bus.keyboard.set_key(0xb);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.program_counter, 0x6);
     }
 
     #[test]
     fn sne_vx() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x4320);
 
-        cpu.program_counter = 0x5;
-        cpu.v_registers[0x3] = 0x21;
+        chip8.cpu.program_counter = 0x5;
+        chip8.cpu.v_registers[0x3] = 0x21;
 
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.program_counter, 0x9);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.program_counter, 0x9);
 
-        cpu.program_counter = 0x5;
+        chip8.cpu.program_counter = 0x5;
         let instruction = Instruction::new(0x4321);
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.program_counter, 0x7);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.program_counter, 0x7);
     }
 
     #[test]
     fn sub_vx_vy() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x83b5);
 
-        cpu.v_registers[0x3] = 0x9;
-        cpu.v_registers[0xb] = 0x4;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.v_registers[0xf], 0x1);
-        assert_eq!(cpu.v_registers[0x3], 0x5);
+        chip8.cpu.v_registers[0x3] = 0x9;
+        chip8.cpu.v_registers[0xb] = 0x4;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0xf], 0x1);
+        assert_eq!(chip8.cpu.v_registers[0x3], 0x5);
 
         let instruction = Instruction::new(0x83b5);
-        cpu.v_registers[0x3] = 0x9;
-        cpu.v_registers[0xb] = 0xf;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.v_registers[0xf], 0x0);
-        assert_eq!(cpu.v_registers[0x3], 0xfa);
+        chip8.cpu.v_registers[0x3] = 0x9;
+        chip8.cpu.v_registers[0xb] = 0xf;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0xf], 0x0);
+        assert_eq!(chip8.cpu.v_registers[0x3], 0xfa);
     }
 
     #[test]
     fn xor_vx_vy() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x8e23);
 
-        cpu.v_registers[0xe] = 0xff;
-        cpu.v_registers[0x2] = 0x10;
-        cpu.execute_instruction(instruction, &mut [0], &mut display, &mut keyboard);
-        assert_eq!(cpu.v_registers[0xe], 0xef);
+        chip8.cpu.v_registers[0xe] = 0xff;
+        chip8.cpu.v_registers[0x2] = 0x10;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0xe], 0xef);
     }
 
     #[test]
     fn drw() {
-        let mut cpu = CPU::default();
-        let mut display = NullDisplay::default();
-        let mut keyboard = NullKeyboard::default();
+        let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0xdb03);
-        let mut memory: [u8; 4096] = [0; 4096];
 
         // drawing the following 'tree' sprite offset 1 pixel from left
         // ...*..
         // ..*.*.
         // .*..*.
         let sprite_data: [u8; 3] = [0b00100000, 0b01010000, 0b10010000];
-        cpu.address_i = 0x500;
-        cpu.v_registers[0xb] = 0x1;
-        memory[0x500..0x500 + sprite_data.len()].copy_from_slice(&sprite_data);
-        cpu.execute_instruction(instruction, &mut memory, &mut display, &mut keyboard);
+        chip8.cpu.address_i = 0x500;
+        chip8.cpu.v_registers[0xb] = 0x1;
+        chip8.bus.memory[0x500..0x500 + sprite_data.len()].copy_from_slice(&sprite_data);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
 
         // row 1
-        assert!(!display.get_pixel(0, 0));
-        assert!(!display.get_pixel(1, 0));
-        assert!(!display.get_pixel(2, 0));
-        assert!(display.get_pixel(3, 0));
-        assert!(!display.get_pixel(4, 0));
-        assert!(!display.get_pixel(5, 0));
+        assert!(!chip8.bus.display.get_pixel(0, 0));
+        assert!(!chip8.bus.display.get_pixel(1, 0));
+        assert!(!chip8.bus.display.get_pixel(2, 0));
+        assert!(chip8.bus.display.get_pixel(3, 0));
+        assert!(!chip8.bus.display.get_pixel(4, 0));
+        assert!(!chip8.bus.display.get_pixel(5, 0));
 
         // row 2
-        assert!(!display.get_pixel(0, 1));
-        assert!(!display.get_pixel(1, 1));
-        assert!(display.get_pixel(2, 1));
-        assert!(!display.get_pixel(3, 1));
-        assert!(display.get_pixel(4, 1));
-        assert!(!display.get_pixel(5, 1));
+        assert!(!chip8.bus.display.get_pixel(0, 1));
+        assert!(!chip8.bus.display.get_pixel(1, 1));
+        assert!(chip8.bus.display.get_pixel(2, 1));
+        assert!(!chip8.bus.display.get_pixel(3, 1));
+        assert!(chip8.bus.display.get_pixel(4, 1));
+        assert!(!chip8.bus.display.get_pixel(5, 1));
 
         // row 3
-        assert!(!display.get_pixel(0, 2));
-        assert!(display.get_pixel(1, 2));
-        assert!(!display.get_pixel(2, 2));
-        assert!(!display.get_pixel(3, 2));
-        assert!(display.get_pixel(4, 2));
-        assert!(!display.get_pixel(5, 2));
+        assert!(!chip8.bus.display.get_pixel(0, 2));
+        assert!(chip8.bus.display.get_pixel(1, 2));
+        assert!(!chip8.bus.display.get_pixel(2, 2));
+        assert!(!chip8.bus.display.get_pixel(3, 2));
+        assert!(chip8.bus.display.get_pixel(4, 2));
+        assert!(!chip8.bus.display.get_pixel(5, 2));
     }
 }

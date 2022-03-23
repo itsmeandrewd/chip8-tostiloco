@@ -1,22 +1,19 @@
 use crate::Display;
 
-pub struct NullDisplay {
-    pub cleared: bool,
+pub struct MockDisplay {
     pub vram: [u8; 64 * 32],
 }
 
-impl Default for NullDisplay {
+impl Default for MockDisplay {
     fn default() -> Self {
         Self {
-            cleared: false,
             vram: [0; 64 * 32],
         }
     }
 }
 
-impl Display for NullDisplay {
+impl Display for MockDisplay {
     fn clear(&mut self) {
-        self.cleared = true;
         self.vram = [0; 64 * 32];
     }
 

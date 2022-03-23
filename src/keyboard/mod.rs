@@ -1,5 +1,5 @@
 pub mod browser;
-pub mod null;
+pub mod mock;
 
 pub trait Keyboard {
     fn initialize(&mut self);

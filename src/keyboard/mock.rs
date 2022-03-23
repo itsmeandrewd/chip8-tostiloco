@@ -1,11 +1,11 @@
 use crate::keyboard::Keyboard;
 
 #[derive(Default)]
-pub struct NullKeyboard {
+pub struct MockKeyboard {
     key_pressed: u8,
 }
 
-impl Keyboard for NullKeyboard {
+impl Keyboard for MockKeyboard {
     fn initialize(&mut self) {
         self.key_pressed = 0;
     }
