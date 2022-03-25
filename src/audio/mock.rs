@@ -2,7 +2,7 @@ use crate::audio::AudioSource;
 
 #[derive(Default)]
 pub struct MockAudioSource {
-    pub is_playing: bool
+    pub is_playing: bool,
 }
 
 impl AudioSource for MockAudioSource {

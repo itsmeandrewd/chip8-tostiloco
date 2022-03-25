@@ -1,10 +1,10 @@
+use crate::audio::AudioSource;
 use crate::chip8::Chip8Bus;
 use crate::display::Display;
 use crate::instruction::Instruction;
 use crate::keyboard::Keyboard;
 use log::debug;
 use rand::{thread_rng, Rng};
-use crate::audio::AudioSource;
 
 pub struct CPU {
     pub address_i: u16,
@@ -115,9 +115,21 @@ impl CPU {
         self.delay_timer = self.v_registers[x];
     }
 
+    pub fn ld_f_vx(&mut self, x: usize) {
+        debug!("LD F, V{}", x);
+        self.address_i = (self.v_registers[x] * 5) as u16;
+    }
+
     pub fn ld_i(&mut self, addr: u16) {
         debug!("LD I, {:#02x}", addr);
         self.address_i = addr;
+    }
+
+    pub fn ld_i_vx(&mut self, x: usize, memory: &mut [u8]) {
+        debug!("LD [I], V{}", x);
+        for index in 0..=x {
+            memory[self.address_i as usize + index] = self.v_registers[index];
+        }
     }
 
     pub fn ld_st_vx(&mut self, x: usize) {
@@ -223,7 +235,14 @@ impl CPU {
         self.v_registers[x] ^= self.v_registers[y];
     }
 
-    pub fn drw(&mut self, x: usize, y: usize, n: usize, memory: &[u8], display: &mut Box<dyn Display>) {
+    pub fn drw(
+        &mut self,
+        x: usize,
+        y: usize,
+        n: usize,
+        memory: &[u8],
+        display: &mut Box<dyn Display>,
+    ) {
         debug!("DRW V{}, V{}, {:#01x}", x, y, n);
         self.v_registers[0xf] = 0x0;
 
@@ -287,7 +306,9 @@ impl CPU {
                 0x15 => self.ld_dt_vx(instruction.x),
                 0x18 => self.ld_st_vx(instruction.x),
                 0x1e => self.add_i_vx(instruction.x),
+                0x29 => self.ld_f_vx(instruction.x),
                 0x33 => self.ld_bcd_vx(instruction.x, &mut bus.memory),
+                0x55 => self.ld_i_vx(instruction.x, &mut bus.memory),
                 0x65 => self.ld_vx_i(instruction.x, &mut bus.memory),
                 _ => self.unknown_instruction(&instruction),
             },
@@ -382,9 +403,9 @@ mod test {
         let mut chip8 = Chip8::new(MOCK);
         let instruction = Instruction::new(0x00e0);
 
-        chip8.bus.display.draw_pixel(1,0, 1.0, true);
-        chip8.bus.display.draw_pixel(1,3, 1.0, true);
-        chip8.bus.display.draw_pixel(4,1, 1.0, true);
+        chip8.bus.display.draw_pixel(1, 0, 1.0, true);
+        chip8.bus.display.draw_pixel(1, 3, 1.0, true);
+        chip8.bus.display.draw_pixel(4, 1, 1.0, true);
         assert!(chip8.bus.display.get_pixel(1, 0));
         assert!(chip8.bus.display.get_pixel(1, 3));
         assert!(chip8.bus.display.get_pixel(4, 1));
@@ -425,6 +446,22 @@ mod test {
         chip8.cpu.v_registers[0x3] = 0xbb;
         chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
         assert_eq!(chip8.cpu.delay_timer, 0xbb);
+    }
+
+    #[test]
+    fn ld_i_vx() {
+        let mut chip8 = Chip8::new(MOCK);
+        let instruction = Instruction::new(0xf255);
+
+        chip8.cpu.address_i = 0x2;
+        chip8.cpu.v_registers[0x0] = 0xb;
+        chip8.cpu.v_registers[0x1] = 0xa;
+        chip8.cpu.v_registers[0x2] = 0x9;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+
+        assert_eq!(chip8.bus.memory[0x2], 0xb);
+        assert_eq!(chip8.bus.memory[0x3], 0xa);
+        assert_eq!(chip8.bus.memory[0x4], 0x9);
     }
 
     #[test]

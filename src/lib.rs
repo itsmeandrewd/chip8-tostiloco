@@ -1,9 +1,9 @@
+mod audio;
 mod chip8;
 mod cpu;
 mod display;
 mod instruction;
 mod keyboard;
-mod audio;
 
 use crate::chip8::{Chip8, Chip8Platform};
 use crate::cpu::CPU;

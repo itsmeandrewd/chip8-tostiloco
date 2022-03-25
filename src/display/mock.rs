@@ -6,9 +6,7 @@ pub struct MockDisplay {
 
 impl Default for MockDisplay {
     fn default() -> Self {
-        Self {
-            vram: [0; 64 * 32],
-        }
+        Self { vram: [0; 64 * 32] }
     }
 }
 

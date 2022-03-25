@@ -1,5 +1,5 @@
-pub mod mock;
 pub mod browser;
+pub mod mock;
 
 pub trait AudioSource {
     fn initialize(&mut self);
