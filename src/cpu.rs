@@ -4,6 +4,7 @@ use crate::instruction::Instruction;
 use crate::keyboard::Keyboard;
 use log::debug;
 use rand::{thread_rng, Rng};
+use crate::audio::AudioSource;
 
 pub struct CPU {
     pub address_i: u16,
@@ -47,12 +48,15 @@ impl CPU {
         self.cls(display);
     }
 
-    pub fn handler_timers(&mut self) {
+    pub fn handler_timers(&mut self, audio: &mut Box<dyn AudioSource>) {
         if self.delay_timer > 0 {
             self.delay_timer -= 1;
         }
         if self.sound_timer > 0 {
+            audio.start_sound();
             self.sound_timer -= 1;
+        } else {
+            audio.stop_sound();
         }
     }
 

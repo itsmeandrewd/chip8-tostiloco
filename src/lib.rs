@@ -3,6 +3,7 @@ mod cpu;
 mod display;
 mod instruction;
 mod keyboard;
+mod audio;
 
 use crate::chip8::{Chip8, Chip8Platform};
 use crate::cpu::CPU;
@@ -62,7 +63,8 @@ pub fn tick() {
 #[wasm_bindgen]
 pub fn handle_timers() {
     unsafe {
-        EMULATOR.as_mut().unwrap().cpu.handler_timers();
+        let emulator: &mut Chip8 = EMULATOR.as_mut().unwrap();
+        emulator.cpu.handler_timers(&mut emulator.bus.audio);
     }
 }
 
@@ -72,5 +74,8 @@ pub fn load_rom(rom_bytes: &[u8]) {
         let emulator = EMULATOR.as_mut().unwrap();
         emulator.reset();
         emulator.load_rom_into_memory(rom_bytes);
+
+        emulator.bus.audio.initialize();
+        emulator.bus.audio.start_sound();
     }
 }

@@ -4,6 +4,9 @@ use crate::instruction::Instruction;
 use crate::keyboard::browser::BrowserKeyboard;
 use crate::keyboard::mock::MockKeyboard;
 use crate::{Display, Keyboard, CPU};
+use crate::audio::AudioSource;
+use crate::audio::browser::BrowserAudioSource;
+use crate::audio::mock::MockAudioSource;
 
 // where in memory roms should start being read from
 const ROM_START_ADDRESS: usize = 0x200;
@@ -19,6 +22,7 @@ pub struct Chip8Bus {
     pub memory: [u8; 4096],
     pub display: Box<dyn Display>,
     pub keyboard: Box<dyn Keyboard>,
+    pub audio: Box<dyn AudioSource>
 }
 
 impl Chip8Bus {
@@ -28,6 +32,7 @@ impl Chip8Bus {
                 memory: [0; 4096],
                 display: Box::new(WebGLDisplay::default()),
                 keyboard: Box::new(BrowserKeyboard::default()),
+                audio: Box::new(BrowserAudioSource::default())
             },
             /*Chip8Platform::DESKTOP => Self {
                 memory: [0; 4096],
@@ -38,6 +43,7 @@ impl Chip8Bus {
                 memory: [0; 4096],
                 display: Box::new(MockDisplay::default()),
                 keyboard: Box::new(MockKeyboard::default()),
+                audio: Box::new(MockAudioSource::default())
             },
         }
     }
