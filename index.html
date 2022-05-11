@@ -2,7 +2,7 @@
 <html>
     <head>
         <meta charset="utf-8">
-        <title>Moldy Chip Emulator</title>
+        <title>Tostiloco Chip8 Emulator</title>
     </head>
     <body>
         <form>
@@ -70,14 +70,14 @@
                             load_rom(byteArray);
                             if (run_type === 0) {
                                 let cpu_speed = 400.0;
-                                let clock_speed = 60.0;
+                                let timer_speed = 60.0;
                                 let cpuIntervalID = setInterval(() => {
                                     tick();
                                 }, 1000.0 / cpu_speed);
 
                                 let timerIntervalID = setInterval(() => {
                                     handle_timers();
-                                }, 1000.0 / clock_speed);
+                                }, 1000.0 / timer_speed);
 
                                 intervalIDs.push(cpuIntervalID);
                                 intervalIDs.push(timerIntervalID);
