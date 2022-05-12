@@ -7,6 +7,7 @@ opengl or metal version if I don't get bored.
 (UPDATE: I'm working on an NES emulator so will not continue to update this)
 
 ![splash image](screenshots/splash1.gif)
+![splash image](screenshots/splash2.gif)
 
 ## Requirements
 
