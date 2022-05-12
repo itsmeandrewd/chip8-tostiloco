@@ -189,6 +189,14 @@ impl CPU {
         }
     }
 
+    pub fn se_vx_vy(&mut self, x: usize, y: usize) {
+        debug!("SE V{}, V{}", x, y);
+
+        if self.v_registers[x] == self.v_registers[y] {
+            self.program_counter += 2;
+        }
+    }
+
     pub fn shl_vx_vy(&mut self, x: usize, y: usize) {
         debug!("SHL V{}, V{}", x, y);
 
@@ -295,6 +303,7 @@ impl CPU {
             0x2 => self.call(instruction.nnn),
             0x3 => self.se_vx(instruction.x, instruction.kk),
             0x4 => self.sne_vx(instruction.x, instruction.kk),
+            0x5 => self.se_vx_vy(instruction.x, instruction.y),
             0x6 => self.ld_vx(instruction.x, instruction.kk),
             0x7 => self.add_vx(instruction.x, instruction.kk),
             0x8 => match instruction.n {
@@ -598,6 +607,24 @@ mod test {
 
         chip8.cpu.program_counter = 0x5;
         let instruction = Instruction::new(0x3308);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.program_counter, 0x9);
+    }
+
+    #[test]
+    fn se_vx_vy() {
+        let mut chip8 = Chip8::new(MOCK);
+        let instruction = Instruction::new(0x5010);
+
+        chip8.cpu.program_counter = 0x5;
+        chip8.cpu.v_registers[0x0] = 0x8;
+
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.program_counter, 0x7);
+
+        chip8.cpu.program_counter = 0x5;
+        chip8.cpu.v_registers[0x1] = 0x8;
+        let instruction = Instruction::new(0x5010);
         chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
         assert_eq!(chip8.cpu.program_counter, 0x9);
     }
