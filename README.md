@@ -6,7 +6,7 @@ Graphics are rendered with webGL and eventually perhaps a desktop
 opengl or metal version if I don't get bored. 
 (UPDATE: I'm working on an NES emulator so will not continue to update this)
 
-![splash image](screenshots/splash.png)
+![splash image](screenshots/splash1.gif)
 
 ## Requirements
 
@@ -22,6 +22,11 @@ webserver. You need a webserver as modern browsers will CORS block `fetch` to pu
 ## Running
 
 Run `make` to generate the .wasm file, then `make run` to service index.html over http://localhost:8000 (or any other webserver you want)
+
+### Controls
+
+CHIP8 had the keys 0-9 and A-F. I mapped everything to their original keys for simplicity. Works fine for the numbered
+keys but awkward for the letters but I found most games use the numbers anyways. 
 
 ### Supported roms
 

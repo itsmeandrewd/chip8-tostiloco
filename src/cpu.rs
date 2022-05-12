@@ -170,6 +170,11 @@ impl CPU {
         self.v_registers[x] = self.v_registers[y];
     }
 
+    pub fn or_vx_vy(&mut self, x: usize, y: usize) {
+        debug!("OR V{}, V{}", x, y);
+        self.v_registers[x] |= self.v_registers[y];
+    }
+
     pub fn ret(&mut self) {
         debug!("RET");
         self.stack_pointer -= 1;
@@ -308,6 +313,7 @@ impl CPU {
             0x7 => self.add_vx(instruction.x, instruction.kk),
             0x8 => match instruction.n {
                 0x0 => self.ld_vx_vy(instruction.x, instruction.y),
+                0x1 => self.or_vx_vy(instruction.x, instruction.y),
                 0x2 => self.and_vx_vy(instruction.x, instruction.y),
                 0x3 => self.xor_vx_vy(instruction.x, instruction.y),
                 0x4 => self.add_vx_vy(instruction.x, instruction.y),
@@ -578,6 +584,18 @@ mod test {
 
         chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
         assert_eq!(chip8.cpu.v_registers[0x5], 0x13);
+    }
+
+    #[test]
+    fn or_vx_vy() {
+        let mut chip8 = Chip8::new(MOCK);
+        let instruction = Instruction::new(0x87e1);
+
+        chip8.cpu.v_registers[0x7] = 0x5;
+        chip8.cpu.v_registers[0xe] = 0x10;
+
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0x7], 0x15);
     }
 
     #[test]
