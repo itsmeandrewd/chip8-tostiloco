@@ -182,9 +182,9 @@ impl CPU {
         self.v_registers[x] = random_num as u8 & byte;
     }
 
-    pub fn se_vx(&mut self, vx: usize, byte: u8) {
-        debug!("SE V{}, {:#01x}", vx, byte);
-        if self.v_registers[vx] == byte {
+    pub fn se_vx(&mut self, x: usize, byte: u8) {
+        debug!("SE V{}, {:#01x}", x, byte);
+        if self.v_registers[x] == byte {
             self.program_counter += 2;
         }
     }
@@ -228,6 +228,14 @@ impl CPU {
     pub fn sne_vx(&mut self, vx: usize, byte: u8) {
         debug!("SNE V{}, {:#01x}", vx, byte);
         if self.v_registers[vx] != byte {
+            self.program_counter += 2;
+        }
+    }
+
+    pub fn sne_vx_vy(&mut self, x: usize, y: usize) {
+        debug!("SNE V{}, V{}", x, y);
+
+        if self.v_registers[x] != self.v_registers[y] {
             self.program_counter += 2;
         }
     }
@@ -299,6 +307,7 @@ impl CPU {
                 0xe => self.shl_vx_vy(instruction.x, instruction.y),
                 _ => self.unknown_instruction(&instruction),
             },
+            0x9 => self.sne_vx_vy(instruction.x, instruction.y),
             0xa => self.ld_i(instruction.nnn),
             0xc => self.rnd(instruction.x, instruction.kk),
             0xd => self.drw(
@@ -667,6 +676,24 @@ mod test {
         let instruction = Instruction::new(0x4321);
         chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
         assert_eq!(chip8.cpu.program_counter, 0x7);
+    }
+
+    #[test]
+    fn sne_vx_vy() {
+        let mut chip8 = Chip8::new(MOCK);
+        let instruction = Instruction::new(0x9310);
+
+        chip8.cpu.program_counter = 0x5;
+        chip8.cpu.v_registers[0x3] = 0x21;
+
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.program_counter, 0x9);
+
+        chip8.cpu.program_counter = 0x7;
+        chip8.cpu.v_registers[0x1] = 0x21;
+        let instruction = Instruction::new(0x9310);
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.program_counter, 0x9);
     }
 
     #[test]
