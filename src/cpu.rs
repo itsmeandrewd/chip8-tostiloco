@@ -189,6 +189,18 @@ impl CPU {
         }
     }
 
+    pub fn shl_vx_vy(&mut self, x: usize, y: usize) {
+        debug!("SHL V{}, V{}", x, y);
+
+        if (self.v_registers[x] >> 7) & 0xf == 0x1 {
+            // shifting after this would be overflow, dunno if I'm supposed to wrap?
+            self.v_registers[0xf] = 0x1;
+        } else {
+            self.v_registers[0xf] = 0x0;
+        }
+        self.v_registers[x] = self.v_registers[x] << 1;
+    }
+
     pub fn shr_vx_vy(&mut self, x: usize, y: usize) {
         debug!("SHR V{}, V{}", x, y);
         if self.v_registers[x] & 0x1 == 0x1 {
@@ -284,6 +296,7 @@ impl CPU {
                 0x4 => self.add_vx_vy(instruction.x, instruction.y),
                 0x5 => self.sub_vx_vy(instruction.x, instruction.y),
                 0x6 => self.shr_vx_vy(instruction.x, instruction.y),
+                0xe => self.shl_vx_vy(instruction.x, instruction.y),
                 _ => self.unknown_instruction(&instruction),
             },
             0xa => self.ld_i(instruction.nnn),
@@ -578,6 +591,24 @@ mod test {
         let instruction = Instruction::new(0x3308);
         chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
         assert_eq!(chip8.cpu.program_counter, 0x9);
+    }
+
+    #[test]
+    fn shl_vx_vy() {
+        let mut chip8 = Chip8::new(MOCK);
+        let instruction = Instruction::new(0x872e);
+
+        chip8.cpu.v_registers[0x7] = 0b1011101; // 93
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0xf], 0x0);
+        assert_eq!(chip8.cpu.v_registers[0x7], 0b10111010); // 186
+
+        // TODO: check if this instruction should wrap around overflows
+        /*let instruction = Instruction::new(0x872e);
+        chip8.cpu.v_registers[0x7] = 0b1;
+        chip8.cpu.execute_instruction(instruction, &mut chip8.bus);
+        assert_eq!(chip8.cpu.v_registers[0xf], 0x0);
+        assert_eq!(chip8.cpu.v_registers[0x1], 0b10);*/
     }
 
     #[test]
